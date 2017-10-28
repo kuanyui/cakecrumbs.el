@@ -50,20 +50,8 @@ mouse-3: go to end") ""))
 (add-hook 'prog-mode-hook 'which-func-setup-header t t)
 (add-hook 'html-mode-hook 'which-func-setup-header t t)
 
-(defun which-func-scss-fn ()
-  (when (eq major-mode 'omg-scss-mode)
 
-    (save-excursion
-      (let* ((parent-pos-list (nth 9 (syntax-ppss)))
-             (parent-list (mapcar (lambda (pos)
-                                    (goto-char pos)
-                                    (let* ((to (point))
-                                           (from (progn (re-search-backward "[,;{}^\n]" nil t)
-                                                        (1+ (point)))))
-                                      (string-trim (buffer-substring from to)))) parent-pos-list)))
-        (string-join parent-list (propertize "  " 'face 'font-lock-comment-face))
-        ))))
-  ;; (format "point == %s , %s" (point) (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))
+;; (format "point == %s , %s" (point) (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))
 (save-excursion (syntax-after (point))
                 (skip-syntax-forward "^()" 3)
                 (syntax-ppss))
@@ -74,9 +62,30 @@ mouse-3: go to end") ""))
         (match-string num string)
       nil)))
 
+
+
+;; ======================================================
+;; SCSS / LESS
+;; ======================================================
+(defun cakecrumbs-scss-get-parents (&optional point)
+  (save-excursion
+    (let* ((parent-pos-list (nth 9 (syntax-ppss)))
+           (parent-list (mapcar (lambda (pos)
+                                  (goto-char pos)
+                                  (let* ((to (point))
+                                         (from (progn (re-search-backward "[,;{}^\n]" nil t)
+                                                      (1+ (point)))))
+                                    (string-trim (buffer-substring from to)))) parent-pos-list)))
+      parent-list
+      )))
+
+;; ======================================================
+;; HTML
+;; ======================================================
 (defun cakecrumbs-html-get-parent (&optional point)
   (interactive)
   (save-excursion
+    (if point (goto-char point))
     (save-match-data
       (let (back-until-tag-name tag-name tag-pos)
         (while (let* ((tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
@@ -103,6 +112,19 @@ mouse-3: go to end") ""))
         (message (format "%s -- %s" (point) tag-name)))
       )))
 
+(defun cakecrumbs-html-get-parents (&optional point)
+  (let ((fin '())
+        (last-parent-pos (or point (point))))
+    (while (let ((parent (funcall func-to-get-parent last-parent-pos)))
+             (if (null parent)
+                 nil ; break
+               (prog1 t ; continue
+                 (push parent fin)
+                 ))))
+    fin))
+;; ======================================================
+;; Jade / Pug
+;; ======================================================
 (defun cakecrumbs-jade-get-parent (&optional point)
   ;; [TODO] li: span()
   "return value (parent-tag-name parent-tag-point in-tag-itself)"
@@ -150,18 +172,72 @@ mouse-3: go to end") ""))
   (interactive)
   (message (format "(point) ==> %s,  %s" (point) (cakecrumbs-jade-get-parent))))
 
-  (defun ttt ()
-    (interactive)
-    (save-excursion
-      (message "%s" (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))))
+(defun ttt ()
+  (interactive)
+  (save-excursion
+    (message "%s" (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))))
 
-  (defun sss ()
-    (interactive)
-    (message (format "POS ==> %s, CONTEXT ==> %s" (point) (save-excursion (sgml-get-context)))))
+(defun sss ()
+  (interactive)
+  (message (format "POS ==> %s, CONTEXT ==> %s" (point) (save-excursion (sgml-get-context)))))
 
 ;; In nxml-mode,  `nxml-backward-up-element' to go up to parent.
 ;; In web-mode, C-c C-e u parent element (up) (`web-mode-element-parent-position' (point))
 
+
+
+(defmacro with-face (str &rest properties)
+  `(propertize ,str 'face (list ,@properties)))
+
+(defun sl/make-header ()
+  ""
+  (let* ((sl/full-header (abbreviate-file-name buffer-file-name))
+         (sl/header (file-name-directory sl/full-header))
+         (sl/drop-str "[...]"))
+    (if (> (length sl/full-header)
+           (window-body-width))
+        (if (> (length sl/header)
+               (window-body-width))
+            (progn
+              (concat (with-face sl/drop-str
+                                 :background "blue"
+                                 :weight 'bold
+                                 )
+                      (with-face (substring sl/header
+                                            (+ (- (length sl/header)
+                                                  (window-body-width))
+                                               (length sl/drop-str))
+                                            (length sl/header))
+                                 ;; :background "red"
+                                 :weight 'bold
+                                 )))
+          (concat (with-face sl/header
+                             ;; :background "red"
+                             :foreground "#8fb28f"
+                             :weight 'bold
+                             )))
+      (concat (with-face sl/header
+                         ;; :background "green"
+                         ;; :foreground "black"
+                         :weight 'bold
+                         :foreground "#8fb28f"
+                         )
+              (with-face (file-name-nondirectory buffer-file-name)
+                         :weight 'bold
+                         ;; :background "red"
+                         )))))
+
+(defun sl/display-header ()
+  (setq header-line-format
+        '("" ;; invocation-name
+          (:eval (if (buffer-file-name)
+                     (sl/make-header)
+                   "%b")))))
+
+
+
+(add-hook 'buffer-list-update-hook
+          'sl/display-header)
 
 (provide 'cakecrumbs)
 ;;; cakecrumbs.el ends here
