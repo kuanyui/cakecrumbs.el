@@ -1,4 +1,4 @@
-;;; levelcrumbs.el ---                               -*- lexical-binding: t; -*-
+;;; cakecrumbs.el ---                               -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2017  onohiroko
 
@@ -68,13 +68,13 @@ mouse-3: go to end") ""))
                 (skip-syntax-forward "^()" 3)
                 (syntax-ppss))
 
-(defun levelcrumbs-string-match (regexp num string)
+(defun cakecrumbs-string-match (regexp num string)
   (save-match-data
     (if (string-match regexp string)
         (match-string num string)
       nil)))
 
-(defun levelcrumbs-html-parent-position (&optional point)
+(defun cakecrumbs-html-get-parent (&optional point)
   (interactive)
   (save-excursion
     (save-match-data
@@ -85,9 +85,9 @@ mouse-3: go to end") ""))
                                    ((string-suffix-p "/" raw-tag) 'right)
                                    (t nil))))
                  (if tag-pos
-                     (setq tag-name (cond ((eq slash 'left)  (levelcrumbs-string-match "^/ *\\([^>< ]+\\)" 1 raw-tag))
-                                          ((eq slash 'right) (levelcrumbs-string-match "[^>< ]+ *$" 0 raw-tag))
-                                          (t                 (levelcrumbs-string-match "^[^>< ]+" 0 raw-tag)))))
+                     (setq tag-name (cond ((eq slash 'left)  (cakecrumbs-string-match "^/ *\\([^>< ]+\\)" 1 raw-tag))
+                                          ((eq slash 'right) (cakecrumbs-string-match "[^>< ]+ *$" 0 raw-tag))
+                                          (t                 (cakecrumbs-string-match "^[^>< ]+" 0 raw-tag)))))
                  (cond ((null tag-pos) nil) ; nil: terminate while loop
                        (back-until-tag-name
                         (if (string-equal back-until-tag-name tag-name) ; if equal, set to nil && continue. else, continue.
@@ -103,18 +103,65 @@ mouse-3: go to end") ""))
         (message (format "%s -- %s" (point) tag-name)))
       )))
 
-(defun ttt ()
-  (interactive)
+(defun cakecrumbs-jade-get-parent (&optional point)
+  ;; [TODO] li: span()
+  "return value (parent-tag-name parent-tag-point in-tag-itself)"
   (save-excursion
-    (message "%s" (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))))
+    (if point (goto-char point))
+    (let ((last-indent (current-indentation))
+          (parent-indent-must-less-than (current-indentation))  ; unless in-parenthesis is non-nil
+          (tag-name nil)
+          (TAG-PATT "^ +\\([.#A-z0-9_-]+\\)")
+          (in-parenthesis (nth 9 (syntax-ppss))))
+      (while (progn
+               ;; (back-to-indentation)
+               (cond (in-parenthesis
+                      (goto-char (car in-parenthesis)) ;; goto beginning of current parenthesis
+                      (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (thing-at-point 'line t)))
+                      nil) ; break
+                     ((> (current-column) (current-indentation))  ; (ex: | is cursor pos) ===>  span() |
+                      (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (thing-at-point 'line t)))
+                      nil) ; break
+                     ((and (not in-parenthesis)
+                           (>= (current-indentation) parent-indent-must-less-than)) ; absolutely not parent
+                      (forward-line -1)
+                      t) ; continue
+                     ((>= (current-indentation) last-indent) ; absolutely not parent
+                      (forward-line -1)
+                      t) ; continue
+                     (t
+                      (progn
+                        (setq last-indent (min (current-indentation) last-indent))
+                        (cond ((eq last-indent 0) ; root
+                               nil) ; break
+                              (t  ; a tag!
+                               (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (thing-at-point 'line t)))
+                               nil) ; break
+                              ))))))
+      (if tag-name
+          (list tag-name
+                (progn (back-to-indentation) (point))
+                (if in-parenthesis t))
+        nil
+        ))
+    ))
 
-(defun sss ()
+(defun jjj ()
   (interactive)
-  (message (format "POS ==> %s, CONTEXT ==> %s" (point) (save-excursion (sgml-get-context)))))
+  (message (format "(point) ==> %s,  %s" (point) (cakecrumbs-jade-get-parent))))
+
+  (defun ttt ()
+    (interactive)
+    (save-excursion
+      (message "%s" (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))))
+
+  (defun sss ()
+    (interactive)
+    (message (format "POS ==> %s, CONTEXT ==> %s" (point) (save-excursion (sgml-get-context)))))
 
 ;; In nxml-mode,  `nxml-backward-up-element' to go up to parent.
 ;; In web-mode, C-c C-e u parent element (up) (`web-mode-element-parent-position' (point))
 
 
-(provide 'levelcrumbs)
-;;; levelcrumbs.el ends here
+(provide 'cakecrumbs)
+;;; cakecrumbs.el ends here
