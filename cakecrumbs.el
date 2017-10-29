@@ -24,28 +24,145 @@
 
 ;;; Code:
 
-(which-function-mode)
-(setq which-func-format
-      '( "" (:propertize which-func-current local-map
-                         (keymap (mode-line keymap (mouse-3 . end-of-defun)
-                                            (mouse-2 . #[nil "" [1 narrow-to-defun] 2 nil nil])
-                                            (mouse-1 . beginning-of-defun)
-                                            ))
-                         face which-func mouse-face mode-line-highlight help-echo
-                         "mouse-1: go to beginning
+(defvar-local cakecrumb--parents-list '())
+(defvar-local cakecrumb-refresh-timer nil "Buffer-local timer.")
+
+(defface cakecrumbs-separator
+  '((((class color) (background light)) (:inherit font-lock-comment-face))
+    (((class color) (background dark)) (:inherit font-lock-comment-face)))
+  "Seperator between each level" :group 'cakecrumbs-faces)
+
+(defface cakecrumbs-tag
+  '((((class color) (background light)) (:inherit font-lock-type-face))
+    (((class color) (background dark)) (:inherit font-lock-type-face)))
+  "HTML tag" :group 'cakecrumbs-faces)
+
+(defface cakecrumbs-id
+  '((((class color) (background light)) (:inherit font-lock-keyword-face))
+    (((class color) (background dark)) (:inherit font-lock-keyword-face)))
+  "HTML #id" :group 'cakecrumbs-faces)
+
+(defface cakecrumbs-class
+  '((((class color) (background light)) (:inherit font-lock-type-face))
+    (((class color) (background dark)) (:inherit font-lock-type-face)))
+  "HTML .class" :group 'cakecrumbs-faces)
+
+(defface cakecrumbs-pseudo
+  '((((class color) (background light)) (:inherit font-lock-constant-face))
+    (((class color) (background dark)) (:inherit font-lock-constant-face)))
+  "CSS pseudo selector" :group 'cakecrumbs-faces)
+
+(defun cakecrumbs-matched-positions-all (regexp string &optional subexp-depth)
+  "Return a list of matched positions for REGEXP in STRING.
+SUBEXP-DEPTH is 0 by default."
+  (if (null subexp-depth)
+      (setq subexp-depth 0))
+  (save-match-data
+    (let ((pos 0) result)
+      (while (and (string-match regexp string pos)
+                  (< pos (length string)))
+        (let ((m (match-end subexp-depth)))
+          (push (cons (match-beginning subexp-depth) (match-end subexp-depth)) result)
+          (setq pos (match-end 0))))
+      (nreverse result))))
+
+(setq ex "span.col-md-3.col-xs-6#test-hello")
+(setq cs "span .col-md-3.col-xs-6 > #test-hello :not(:nth-child(42))")
+
+(setq cakecrumbs-re-tag "^[^ .#:()]+")
+(setq cakecrumbs-re-class "[.][-A-z0-9_]+")
+(setq cakecrumbs-re-id "#[-A-z0-9_]+")
+(setq cakecrumbs-re-pseudo ":[-A-z0-9_]+?")
+
+(cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
+(cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
+(cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
+(cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
+
+
+
+(defun cakecrumbs-set-faces (level-str)
+  "Input is single-level string"
+  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-tag ex)))) ; tag
+    (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-tag) level-str)))
+  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-id ex)))) ; id
+    (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-id) level-str)))
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-class ex))) ; class
+    (if m (mapc (lambda (pair)
+                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-class) level-str))
+                m)))
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo ex))) ; pseudo
+    (if m (mapc (lambda (pair)
+                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-pseudo) level-str))
+                m)))
+  level-str)
+
+
+
+(defun cakecrumbs-make-header ()
+  ""
+  (let* ((full-header (abbreviate-file-name buffer-file-name))
+         (header (file-name-directory full-header))
+         (drop-str "[...]"))
+    (if (> (length full-header)
+           (window-body-width))
+        (if (> (length header)
+               (window-body-width))
+            (progn
+              (concat (cakecrumbs-with-faces drop-str
+                                             :background "blue"
+                                             :weight 'bold
+                                             )
+                      (cakecrumbs-with-faces (substring header
+                                                        (+ (- (length header)
+                                                              (window-body-width))
+                                                           (length drop-str))
+                                                        (length header))
+                                             ;; :background "red"
+                                             :weight 'bold
+                                             )))
+          (concat (cakecrumbs-with-faces header
+                                         ;; :background "red"
+                                         :foreground "#8fb28f"
+                                         :weight 'bold
+                                         )))
+      (concat (cakecrumbs-with-faces header
+                                     ;; :background "green"
+                                     ;; :foreground "black"
+                                     :weight 'bold
+                                     :foreground "#8fb28f"
+                                     )
+              (cakecrumbs-with-faces (file-name-nondirectory buffer-file-name)
+                                     :weight 'bold
+                                     ;; :background "red"
+                                     )))))
+
+(defun cakecrumbs-display-header ()
+  (setq header-line-format
+        '("" ;; invocation-name
+          (:eval (if (buffer-file-name)
+                     (cakecrumbs-make-header)
+                   "%b")))))
+
+(add-hook 'buffer-list-update-hook 'cakecrumbs-display-header)
+
+
+;; ======================================================
+;; header-line
+;; ======================================================
+
+( "" (:propertize which-func-current local-map
+                  (keymap (mode-line keymap (mouse-3 . end-of-defun)
+                                     (mouse-2 . #[nil "" [1 narrow-to-defun] 2 nil nil])
+                                     (mouse-1 . beginning-of-defun)
+                                     ))
+                  face which-func mouse-face mode-line-highlight help-echo
+                  "mouse-1: go to beginning
 mouse-2: toggle rest visibility
-mouse-3: go to end") ""))
+mouse-3: go to end") "")
 
-(delete (assoc 'which-func-mode mode-line-misc-info) mode-line-misc-info)
-(setq which-func-header-line-format '(which-func-mode ("" which-func-format)))
 
-(defun which-func-setup-header ()
-  (interactive)
-  (when which-func-mode
-    (delete (assoc 'which-func-mode mode-line-misc-info) mode-line-misc-info)
-    (setq header-line-format which-func-header-line-format)))
-
-(setq which-func-functions '(which-func-scss-fn))
+(setq header-line-format '(t "hello"))
 
 (add-hook 'prog-mode-hook 'which-func-setup-header t t)
 (add-hook 'html-mode-hook 'which-func-setup-header t t)
@@ -122,6 +239,7 @@ mouse-3: go to end") ""))
                  (push parent fin)
                  ))))
     fin))
+
 ;; ======================================================
 ;; Jade / Pug
 ;; ======================================================
@@ -186,58 +304,27 @@ mouse-3: go to end") ""))
 
 
 
-(defmacro with-face (str &rest properties)
-  `(propertize ,str 'face (list ,@properties)))
+;; ======================================================
+;; Idle Timer
+;; ======================================================
 
-(defun sl/make-header ()
-  ""
-  (let* ((sl/full-header (abbreviate-file-name buffer-file-name))
-         (sl/header (file-name-directory sl/full-header))
-         (sl/drop-str "[...]"))
-    (if (> (length sl/full-header)
-           (window-body-width))
-        (if (> (length sl/header)
-               (window-body-width))
-            (progn
-              (concat (with-face sl/drop-str
-                                 :background "blue"
-                                 :weight 'bold
-                                 )
-                      (with-face (substring sl/header
-                                            (+ (- (length sl/header)
-                                                  (window-body-width))
-                                               (length sl/drop-str))
-                                            (length sl/header))
-                                 ;; :background "red"
-                                 :weight 'bold
-                                 )))
-          (concat (with-face sl/header
-                             ;; :background "red"
-                             :foreground "#8fb28f"
-                             :weight 'bold
-                             )))
-      (concat (with-face sl/header
-                         ;; :background "green"
-                         ;; :foreground "black"
-                         :weight 'bold
-                         :foreground "#8fb28f"
-                         )
-              (with-face (file-name-nondirectory buffer-file-name)
-                         :weight 'bold
-                         ;; :background "red"
-                         )))))
+(defun cakecrumbs-timer-handler (buffer)
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (cakecrumbs-refresh)
+      )))
 
-(defun sl/display-header ()
-  (setq header-line-format
-        '("" ;; invocation-name
-          (:eval (if (buffer-file-name)
-                     (sl/make-header)
-                   "%b")))))
+(add-hook 'cakecrumbs-mode-hook
+          (lambda ()
+            (setq cakecrumbs-refresh-timer
+                  (run-with-idle-timer 0.8 t 'cakecrumbs-timer-handler (current-buffer)))))
+
+(add-hook 'kill-buffer-hook
+          (lambda ()
+            (when (timerp cakecrumbs-refresh-timer)
+              (cancel-timer cakecrumbs-refresh-timer))))
 
 
-
-(add-hook 'buffer-list-update-hook
-          'sl/display-header)
 
 (provide 'cakecrumbs)
 ;;; cakecrumbs.el ends here
