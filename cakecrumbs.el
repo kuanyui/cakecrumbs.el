@@ -24,8 +24,15 @@
 
 ;;; Code:
 
-(defvar-local cakecrumb--parents-list '())
-(defvar-local cakecrumb-refresh-timer nil "Buffer-local timer.")
+(defvar-local cakecrumbs--parents-list '())
+(defvar-local cakecrumbs--refresh-timer nil
+  "Buffer-local timer.")
+(defvar-local cakecrumbs--original-head-line-format nil
+  "The value of `header-line-format' before calling `cakecrumbs-install-header'")
+
+(defvar cakecrumbs-separator " | ")
+(defvar cakecrumbs-ellipsis "[...]")
+
 
 (defface cakecrumbs-ellipsis
   '((((class color) (background light)) (:inherit font-lock-comment-face))
@@ -91,7 +98,7 @@ SUBEXP-DEPTH is 0 by default."
 (cakecrumbs-matched-positions-all cakecrumbs-re-attr cs 0)
 (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
 
-(defun cakecrumbs-set-faces (level-str)
+(defun cakecrumbs-propertize-string (level-str)
   "Input is single-level string"
   (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-tag level-str)))) ; tag
     (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-tag) level-str)))
@@ -111,44 +118,55 @@ SUBEXP-DEPTH is 0 by default."
                 m)))
   level-str)
 
-(defun cakecrumbs-make-header ()
+(defun cakecrumbs-format-parents (parents)
+  "PARENTS is a (no-propertized) string list"
+  (mapconcat #'cakecrumbs-propertize-string
+             parent
+             (propertize cakecrumbs-separator 'face 'cakecrumbs-separator)))
+
+(defun cakecrumbs-generate-header-string ()
   ""
-  (let* ((full-parent-list (cakecrumbs-get-parents))
-         (parent-list (> (length full-header)
-                         (window-body-width)))
-         (header (file-name-directory full-header))
-         (drop-str "[...]"))
-    ))
+  (let ((parents (cakecrumbs-get-parents)))
+    (if (null parents)
+        (propertize "(cakecrumbs idle)" 'face 'cakecrumbs-ellipsis)
+      (let* ((fin (cakecrumbs-format-parents parents))
+             (ellipsis (or cakecrumbs-ellipsis "[...]"))
+             (ellipsis-len (length ellipsis-len))
+             (need-ellipsis nil))
+        (while (> (+ (length fin) (if need-ellipsis ellipsis-len 0))
+                  (window-body-width))
+          (setq need-ellipsis t)
+          (pop parents)
+          (setq fin (cakecrumbs-format-parents parents)))
+        (if need-ellipsis
+            (concat (propertize cakecrumbs-ellipsis 'font 'cakecrumbs-ellipsis) fin)
+          fin)))))
 
-(defun cakecrumbs-display-header ()
-  (setq header-line-format
-        '("" ;; invocation-name
-          (:eval (if (buffer-file-name)
-                     (cakecrumbs-make-header)
-                   "%b")))))
+(defun cakecrumbs-install-header ()
+  (setq cakecrumbs--original-head-line-format header-line-format)
+  (setq header-line-format '((:eval (cakecrumbs-generate-header-string)))))
 
-(add-hook 'buffer-list-update-hook 'cakecrumbs-display-header)
+(defun cakecrumbs-uninstall-header ()
+  (setq header-line-format cakecrumbs--original-head-line-format))
+
 
 
 ;; ======================================================
 ;; header-line
 ;; ======================================================
 
-( "" (:propertize which-func-current local-map
-                  (keymap (mode-line keymap (mouse-3 . end-of-defun)
-                                     (mouse-2 . #[nil "" [1 narrow-to-defun] 2 nil nil])
-                                     (mouse-1 . beginning-of-defun)
-                                     ))
-                  face which-func mouse-face mode-line-highlight help-echo
-                  "mouse-1: go to beginning
-mouse-2: toggle rest visibility
-mouse-3: go to end") "")
+;; ( "" (:propertize which-func-current local-map
+;;                   (keymap (mode-line keymap (mouse-3 . end-of-defun)
+;;                                      (mouse-2 . #[nil "" [1 narrow-to-defun] 2 nil nil])
+;;                                      (mouse-1 . beginning-of-defun)
+;;                                      ))
+;;                   face which-func mouse-face mode-line-highlight help-echo
+;;                   "mouse-1: go to beginning
+;; mouse-2: toggle rest visibility
+;; mouse-3: go to end") "")
 
-
-(setq header-line-format '(t "hello"))
-
-(add-hook 'prog-mode-hook 'which-func-setup-header t t)
-(add-hook 'html-mode-hook 'which-func-setup-header t t)
+;; (add-hook 'prog-mode-hook 'which-func-setup-header t t)
+;; (add-hook 'html-mode-hook 'which-func-setup-header t t)
 
 
 ;; (format "point == %s , %s" (point) (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))
@@ -297,23 +315,35 @@ mouse-3: go to end") "")
 ;; Idle Timer
 ;; ======================================================
 
-(defun cakecrumbs-timer-handler (buffer)
-  (when (buffer-live-p buffer)
-    (with-current-buffer buffer
-      (cakecrumbs-refresh)
-      )))
+;; (defun cakecrumbs-timer-handler (buffer)
+;;   (when (buffer-live-p buffer)
+;;     (with-current-buffer buffer
+;;       (cakecrumbs-refresh)
+;;       )))
+;;
+;; (add-hook 'cakecrumbs-mode-hook
+;;           (lambda ()
+;;             (setq cakecrumbs--refresh-timer
+;;                   (run-with-idle-timer 0.8 t 'cakecrumbs-timer-handler (current-buffer)))))
+;;
+;; (add-hook 'kill-buffer-hook
+;;           (lambda ()
+;;             (when (timerp cakecrumbs--refresh-timer)
+;;               (cancel-timer cakecrumbs--refresh-timer))))
+;;
 
-(add-hook 'cakecrumbs-mode-hook
-          (lambda ()
-            (setq cakecrumbs-refresh-timer
-                  (run-with-idle-timer 0.8 t 'cakecrumbs-timer-handler (current-buffer)))))
-
-(add-hook 'kill-buffer-hook
-          (lambda ()
-            (when (timerp cakecrumbs-refresh-timer)
-              (cancel-timer cakecrumbs-refresh-timer))))
-
-
+;; ======================================================
+;; Minor Mode
+;; ======================================================
+(define-minor-mode cakecrumbs-mode
+  "doc"
+  :init-value nil
+  :lighter " cakecrumbs"
+  ;; :keymap cakecrumbs-mode-map
+  :global nil
+  (if cakecrumbs-mode
+      (cakecrumbs-install-header)
+    (cakecrumbs-uninstall-header)))
 
 (provide 'cakecrumbs)
 ;;; cakecrumbs.el ends here
