@@ -27,30 +27,40 @@
 (defvar-local cakecrumb--parents-list '())
 (defvar-local cakecrumb-refresh-timer nil "Buffer-local timer.")
 
+(defface cakecrumbs-ellipsis
+  '((((class color) (background light)) (:inherit font-lock-comment-face))
+    (((class color) (background dark)) (:inherit font-lock-comment-face)))
+  "Ellipsis" :group 'cakecrumbs-faces)
+
 (defface cakecrumbs-separator
   '((((class color) (background light)) (:inherit font-lock-comment-face))
     (((class color) (background dark)) (:inherit font-lock-comment-face)))
   "Seperator between each level" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-tag
-  '((((class color) (background light)) (:inherit font-lock-type-face))
-    (((class color) (background dark)) (:inherit font-lock-type-face)))
-  "HTML tag" :group 'cakecrumbs-faces)
+  '((((class color) (background light)) (:inherit font-lock-function-name-face))
+    (((class color) (background dark)) (:inherit font-lock-function-name-face)))
+  "HTML/CSS tag" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-id
   '((((class color) (background light)) (:inherit font-lock-keyword-face))
     (((class color) (background dark)) (:inherit font-lock-keyword-face)))
-  "HTML #id" :group 'cakecrumbs-faces)
+  "HTML/CSS #id" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-class
   '((((class color) (background light)) (:inherit font-lock-type-face))
     (((class color) (background dark)) (:inherit font-lock-type-face)))
-  "HTML .class" :group 'cakecrumbs-faces)
+  "HTML/CSS .class" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-pseudo
   '((((class color) (background light)) (:inherit font-lock-constant-face))
     (((class color) (background dark)) (:inherit font-lock-constant-face)))
-  "CSS pseudo selector" :group 'cakecrumbs-faces)
+  "CSS :pseudo selector" :group 'cakecrumbs-faces)
+
+(defface cakecrumbs-attr
+  '((((class color) (background light)) (:inherit font-lock-variable-name-face))
+    (((class color) (background dark)) (:inherit font-lock-variable-name-face)))
+  "CSS [attribute=] selector" :group 'cakecrumbs-faces)
 
 (defun cakecrumbs-matched-positions-all (regexp string &optional subexp-depth)
   "Return a list of matched positions for REGEXP in STRING.
@@ -67,75 +77,48 @@ SUBEXP-DEPTH is 0 by default."
       (nreverse result))))
 
 (setq ex "span.col-md-3.col-xs-6#test-hello")
-(setq cs "span .col-md-3.col-xs-6 > #test-hello :not(:nth-child(42))")
+(setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
 
 (setq cakecrumbs-re-tag "^[^ .#:()]+")
 (setq cakecrumbs-re-class "[.][-A-z0-9_]+")
 (setq cakecrumbs-re-id "#[-A-z0-9_]+")
+(setq cakecrumbs-re-attr "\\[[-A-z0-9_]+.*\\]")
 (setq cakecrumbs-re-pseudo ":[-A-z0-9_]+?")
 
 (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
 (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
 (cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
+(cakecrumbs-matched-positions-all cakecrumbs-re-attr cs 0)
 (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
-
-
 
 (defun cakecrumbs-set-faces (level-str)
   "Input is single-level string"
-  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-tag ex)))) ; tag
+  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-tag level-str)))) ; tag
     (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-tag) level-str)))
-  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-id ex)))) ; id
+  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-id level-str)))) ; id
     (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-id) level-str)))
-  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-class ex))) ; class
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-class level-str))) ; class
     (if m (mapc (lambda (pair)
                   (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-class) level-str))
                 m)))
-  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo ex))) ; pseudo
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-attr level-str))) ; attr
+    (if m (mapc (lambda (pair)
+                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-attr) level-str))
+                m)))
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo level-str))) ; pseudo
     (if m (mapc (lambda (pair)
                   (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-pseudo) level-str))
                 m)))
   level-str)
 
-
-
 (defun cakecrumbs-make-header ()
   ""
-  (let* ((full-header (abbreviate-file-name buffer-file-name))
+  (let* ((full-parent-list (cakecrumbs-get-parents))
+         (parent-list (> (length full-header)
+                         (window-body-width)))
          (header (file-name-directory full-header))
          (drop-str "[...]"))
-    (if (> (length full-header)
-           (window-body-width))
-        (if (> (length header)
-               (window-body-width))
-            (progn
-              (concat (cakecrumbs-with-faces drop-str
-                                             :background "blue"
-                                             :weight 'bold
-                                             )
-                      (cakecrumbs-with-faces (substring header
-                                                        (+ (- (length header)
-                                                              (window-body-width))
-                                                           (length drop-str))
-                                                        (length header))
-                                             ;; :background "red"
-                                             :weight 'bold
-                                             )))
-          (concat (cakecrumbs-with-faces header
-                                         ;; :background "red"
-                                         :foreground "#8fb28f"
-                                         :weight 'bold
-                                         )))
-      (concat (cakecrumbs-with-faces header
-                                     ;; :background "green"
-                                     ;; :foreground "black"
-                                     :weight 'bold
-                                     :foreground "#8fb28f"
-                                     )
-              (cakecrumbs-with-faces (file-name-nondirectory buffer-file-name)
-                                     :weight 'bold
-                                     ;; :background "red"
-                                     )))))
+    ))
 
 (defun cakecrumbs-display-header ()
   (setq header-line-format
@@ -179,14 +162,20 @@ mouse-3: go to end") "")
         (match-string num string)
       nil)))
 
-
+(defun cakecrumbs-get-parents (&optional point)
+  (cond ((memq major-mode '(scss-mode less-css-mode css-mode))
+         (cakecrumbs-scss-get-parents point))
+        ((memq major-mode '(html-mode web-mode nxml-mode sgml-mode))
+         (cakecrumbs-html-get-parents point))
+        ((memq major-mode '(html-mode yajade-mode jade-mode pug-mode))
+         (cakecrumbs-jade-get-parents point))))
 
 ;; ======================================================
 ;; SCSS / LESS
 ;; ======================================================
 (defun cakecrumbs-scss-get-parents (&optional point)
   (save-excursion
-    (let* ((parent-pos-list (nth 9 (syntax-ppss)))
+    (let* ((parent-pos-list (nth 9 (syntax-ppss point)))
            (parent-list (mapcar (lambda (pos)
                                   (goto-char pos)
                                   (let* ((to (point))
