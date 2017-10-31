@@ -142,6 +142,8 @@ SUBEXP-DEPTH is 0 by default."
             (concat (propertize cakecrumbs-ellipsis 'font 'cakecrumbs-ellipsis) fin)
           fin)))))
 
+(defun zzz () (interactive) (message (cakecrumbs-generate-header-string)))
+
 (defun cakecrumbs-install-header ()
   (setq cakecrumbs--original-head-line-format header-line-format)
   (setq header-line-format '((:eval (cakecrumbs-generate-header-string)))))
@@ -149,7 +151,8 @@ SUBEXP-DEPTH is 0 by default."
 (defun cakecrumbs-uninstall-header ()
   (setq header-line-format cakecrumbs--original-head-line-format))
 
-
+(defun cakecrumbs-current-line-string ()
+  (substring (thing-at-point 'line t) 0 -1))
 
 ;; ======================================================
 ;; header-line
@@ -250,24 +253,35 @@ SUBEXP-DEPTH is 0 by default."
 ;; ======================================================
 ;; Jade / Pug
 ;; ======================================================
+
+(defun cakecrumbs-invisible-line-p ()
+  (string-match "^[ \t]*$" (cakecrumbs-current-line-string)))
+
 (defun cakecrumbs-jade-get-parent (&optional point)
   ;; [TODO] li: span()
-  "return value (parent-tag-name parent-tag-point in-tag-itself)"
+  "return value (parent-tag-name parent-tag-point in-tag-itself).
+Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
-    (let ((last-indent (current-indentation))
-          (parent-indent-must-less-than (current-indentation))  ; unless in-parenthesis is non-nil
-          (tag-name nil)
-          (TAG-PATT "^ +\\([.#A-z0-9_-]+\\)")
-          (in-parenthesis (nth 9 (syntax-ppss))))
+    (let* ((parent-indent-must-less-than (if (cakecrumbs-invisible-line-p)
+                                             (prog1 (current-column) (forward-line -1))
+                                           (current-indentation)))
+           (last-indent parent-indent-must-less-than)
+           (tag-name nil)
+           (TAG-PATT "^ +\\([.#A-z0-9_-]+\\)")
+           (in-parenthesis (nth 9 (syntax-ppss))))
       (while (progn
                ;; (back-to-indentation)
-               (cond (in-parenthesis
+               (cond ((bobp) nil)  ; break
+                     ((cakecrumbs-invisible-line-p)
+                      (forward-line -1)
+                      t)  ; continue
+                     (in-parenthesis
                       (goto-char (car in-parenthesis)) ;; goto beginning of current parenthesis
-                      (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (thing-at-point 'line t)))
+                      (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string)))
                       nil) ; break
                      ((> (current-column) (current-indentation))  ; (ex: | is cursor pos) ===>  span() |
-                      (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (thing-at-point 'line t)))
+                      (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string)))
                       nil) ; break
                      ((and (not in-parenthesis)
                            (>= (current-indentation) parent-indent-must-less-than)) ; absolutely not parent
@@ -282,7 +296,7 @@ SUBEXP-DEPTH is 0 by default."
                         (cond ((eq last-indent 0) ; root
                                nil) ; break
                               (t  ; a tag!
-                               (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (thing-at-point 'line t)))
+                               (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string)))
                                nil) ; break
                               ))))))
       (if tag-name
@@ -293,18 +307,35 @@ SUBEXP-DEPTH is 0 by default."
         ))
     ))
 
-(defun jjj ()
+(defun cakecrumbs-jade-get-parents (&optional point)
+  (save-excursion
+    (if point (goto-char point))
+    (let ((fin '())
+          (pos point))
+      (while (let ((parent (cakecrumbs-jade-get-parent pos)))
+               (if parent
+                   (prog1 t ; continue WHILE
+                     (setq pos (nth 1 parent))
+                     (push (car parent) fin))
+                 nil))) ; break WHILE
+      fin)))
+
+(defun j ()
   (interactive)
   (message (format "(point) ==> %s,  %s" (point) (cakecrumbs-jade-get-parent))))
 
-(defun ttt ()
+(defun jjj ()
   (interactive)
-  (save-excursion
-    (message "%s" (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))))
+  (message"%s" (cakecrumbs-jade-get-parents)))
 
-(defun sss ()
-  (interactive)
-  (message (format "POS ==> %s, CONTEXT ==> %s" (point) (save-excursion (sgml-get-context)))))
+;; (defun ttt ()
+;;   (interactive)
+;;   (save-excursion
+;;     (message "%s" (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))))
+
+;; (defun sss ()
+;;   (interactive)
+;;   (message (format "POS ==> %s, CONTEXT ==> %s" (point) (save-excursion (sgml-get-context)))))
 
 ;; In nxml-mode,  `nxml-backward-up-element' to go up to parent.
 ;; In web-mode, C-c C-e u parent element (up) (`web-mode-element-parent-position' (point))
