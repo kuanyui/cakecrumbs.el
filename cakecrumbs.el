@@ -31,7 +31,7 @@
   "The value of `header-line-format' before calling `cakecrumbs-install-header'")
 
 (defvar cakecrumbs-separator " | ")
-(defvar cakecrumbs-ellipsis "[...]")
+(setq cakecrumbs-ellipsis "[...] ")
 
 
 (defface cakecrumbs-ellipsis
@@ -92,6 +92,8 @@ SUBEXP-DEPTH is 0 by default."
 (setq cakecrumbs-re-attr "\\[[-A-z0-9_]+.*\\]")
 (setq cakecrumbs-re-pseudo ":[-A-z0-9_]+?")
 
+(setq cakecrumbs-ignore-pattern-class '("col-"))
+
 (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
 (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
 (cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
@@ -130,8 +132,8 @@ SUBEXP-DEPTH is 0 by default."
     (if (null parents)
         (propertize "(cakecrumbs idle)" 'face 'cakecrumbs-ellipsis)
       (let* ((fin (cakecrumbs-format-parents parents))
-             (ellipsis (or cakecrumbs-ellipsis "[...]"))
-             (ellipsis-len (length ellipsis))
+             (ellipsis-str (or cakecrumbs-ellipsis "[...]"))
+             (ellipsis-len (length ellipsis-str))
              (need-ellipsis nil))
         (while (> (+ (length fin) (if need-ellipsis ellipsis-len 0))
                   (window-body-width))
@@ -139,7 +141,7 @@ SUBEXP-DEPTH is 0 by default."
           (pop parents)
           (setq fin (cakecrumbs-format-parents parents)))
         (if need-ellipsis
-            (concat (propertize cakecrumbs-ellipsis 'font 'cakecrumbs-ellipsis) fin)
+            (concat (propertize ellipsis-str 'face 'cakecrumbs-ellipsis) fin)
           fin)))))
 
 (defun zzz () (interactive) (message (cakecrumbs-generate-header-string)))
@@ -195,6 +197,7 @@ SUBEXP-DEPTH is 0 by default."
 ;; SCSS / LESS
 ;; ======================================================
 (defun cakecrumbs-scss-get-parents (&optional point)
+  "Return a string list. Each string is the selectors at its level."
   (save-excursion
     (let* ((parent-pos-list (nth 9 (syntax-ppss point)))
            (parent-list (mapcar (lambda (pos)
@@ -209,46 +212,71 @@ SUBEXP-DEPTH is 0 by default."
 ;; ======================================================
 ;; HTML
 ;; ======================================================
+
+(defun s () (interactive) (message "%s" (syntax-ppss)))
+
 (defun cakecrumbs-html-get-parent (&optional point)
+  "return list. (PARENT-TAG PARENT-POS IN-TAG-ITSELF).
+string PARENT-TAG has been formatted as CSS/Jade/Pug-liked.
+bool IN-TAG-ITSELF "
   (interactive)
   (save-excursion
     (if point (goto-char point))
     (save-match-data
-      (let (back-until-tag-name tag-name tag-pos)
+      (let (back-until-tag-name tag-name tag-pos fin-selector)
+        ;; Why not just `re-search-back' "<" then check if in paren via `syntax-ppss'?
+        ;; `web-mode' redefined `syntax-table', which makes `syntax-ppss' unable to check if in <...> paren.
+        ;; I don't want to follow web-mode's rapidly development.
         (while (let* ((tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
-                      (raw-tag (and tag-pos (match-string-no-properties 1)))
-                      (slash (cond ((string-prefix-p "/" raw-tag) 'left)
-                                   ((string-suffix-p "/" raw-tag) 'right)
-                                   (t nil))))
+                      (raw-tag-body (if tag-pos (match-string-no-properties 1)))  ;; raw string in <(...)>
+                      (slash (cond ((string-prefix-p "/" raw-tag-body) 'left)
+                                   ((string-suffix-p "/" raw-tag-body) 'right)
+                                   (t nil)))
+                      (raw-classes (if tag-pos (cakecrumbs-string-match " class ?= ?[\"']\\(.+?\\)[\"']" 1 raw-tag-body)))
+                      (formatted-classes (if raw-classes (concat "." (string-join (split-string raw-classes) "."))))
+                      (raw-id (if tag-pos (cakecrumbs-string-match " id ?= ?[\"']\\(.+?\\)[\"']" 1 raw-tag-body)))
+                      (formatted-id (if raw-id (concat "#" (string-trim raw-id)))))
                  (if tag-pos
-                     (setq tag-name (cond ((eq slash 'left)  (cakecrumbs-string-match "^/ *\\([^>< ]+\\)" 1 raw-tag))
-                                          ((eq slash 'right) (cakecrumbs-string-match "[^>< ]+ *$" 0 raw-tag))
-                                          (t                 (cakecrumbs-string-match "^[^>< ]+" 0 raw-tag)))))
+                     (setq tag-name (cond ((eq slash 'left)  (cakecrumbs-string-match "^/ *\\([^>< ]+\\)" 1 raw-tag-body))
+                                          ((eq slash 'right) (cakecrumbs-string-match "[^>< ]+ *$" 0 raw-tag-body))
+                                          (t                 (cakecrumbs-string-match "^[^>< ]+" 0 raw-tag-body)))))
                  (cond ((null tag-pos) nil) ; nil: terminate while loop
                        (back-until-tag-name
                         (if (string-equal back-until-tag-name tag-name) ; if equal, set to nil && continue. else, continue.
                             (progn (setq back-until-tag-name nil) t))
                         t) ; always continue while loop
-                       ((string-match "^\\(link\\|a\\|img\\)\\b" raw-tag) t) ; self-closing tag (<img/> or <img>)
-                       ((and slash (eq slash 'right)) t) ; self-closing tag (<hr/>)
-                       ((and slash (eq slash 'left) raw-tag) ; closing-tag (</title>)
+                       ((string-match "^\\(link\\|a\\|img\\)\\b" raw-tag-body) t) ; self-closing tag (<img/> or <img>)
+                       ((eq slash 'right) t) ; self-closing tag (<hr/>)
+                       ((and (eq slash 'left) raw-tag-body) ; closing-tag (</title>)
                         (setq back-until-tag-name tag-name)
                         t)
-                       (t nil)  ;; found parent!
+                       (t ;; found parent!
+                        (setq fin-selector
+                              (if (equal tag-name "div")
+                                  (if (or formatted-id formatted-classes)
+                                      (concat formatted-id formatted-classes)
+                                    "div")
+                                (concat tag-name formatted-id formatted-classes)))
+                        nil)
                        ))) ; WHILE
-        (message (format "%s -- %s" (point) tag-name)))
-      )))
+        (list fin-selector tag-pos "[unimplemented]")
+        ))))
+
 
 (defun cakecrumbs-html-get-parents (&optional point)
   (let ((fin '())
         (last-parent-pos (or point (point))))
-    (while (let ((parent (funcall func-to-get-parent last-parent-pos)))
-             (if (null parent)
+    (while (let ((parent-obj (cakecrumbs-html-get-parent last-parent-pos)))
+             (if (null (car parent-obj))
                  nil ; break
                (prog1 t ; continue
-                 (push parent fin)
+                 (push (car parent-obj) fin)
+                 (setq last-parent-pos (nth 1 parent-obj))
                  ))))
     fin))
+
+(defun h () (interactive) (message "%s" (cakecrumbs-html-get-parent)))
+(defun hhh () (interactive) (message "%s" (cakecrumbs-html-get-parents)))
 
 ;; ======================================================
 ;; Jade / Pug
@@ -258,8 +286,8 @@ SUBEXP-DEPTH is 0 by default."
   (string-match "^[ \t]*$" (cakecrumbs-current-line-string)))
 
 (defun cakecrumbs-jade-get-parent (&optional point)
-  ;; [TODO] li: span()
-  "return value (parent-tag-name parent-tag-point in-tag-itself).
+  ;; [TODO] li: sapn()
+  "return value (parent-tag parent-tag-point in-tag-itself).
 Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
