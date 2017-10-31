@@ -223,9 +223,9 @@ bool IN-TAG-ITSELF "
   (save-excursion
     (if point (goto-char point))
     (save-match-data
-      (let (back-until-tag-name tag-name tag-pos fin-selector)
+      (let (back-until-tag-name tag-pos fin-selector)
         ;; Why not just `re-search-back' "<" then check if in paren via `syntax-ppss'?
-        ;; `web-mode' redefined `syntax-table', which makes `syntax-ppss' unable to check if in <...> paren.
+        ;; `web-mode' redefined `syntax-table', which makes `syntax-ppss' unable to check if in <...> paren || in attr string.
         ;; I don't want to follow web-mode's rapidly development.
         (while (let* ((tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
                       (raw-tag-body (if tag-pos (match-string-no-properties 1)))  ;; raw string in <(...)>
