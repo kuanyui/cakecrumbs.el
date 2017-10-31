@@ -241,15 +241,15 @@ bool IN-TAG-ITSELF "
                                           ((eq slash 'right) (cakecrumbs-string-match "[^>< ]+ *$" 0 raw-tag-body))
                                           (t                 (cakecrumbs-string-match "^[^>< ]+" 0 raw-tag-body)))))
                  (cond ((null tag-pos) nil) ; nil: terminate while loop
+                       ((eq slash 'right) t) ; self-closing tag (<hr/>)
+                       ((eq slash 'left) ; closing-tag (</title>)
+                        (setq back-until-tag-name tag-name)
+                        t)
                        (back-until-tag-name
                         (if (string-equal back-until-tag-name tag-name) ; if equal, set to nil && continue. else, continue.
                             (progn (setq back-until-tag-name nil) t))
                         t) ; always continue while loop
                        ((string-match "^\\(link\\|a\\|img\\)\\b" raw-tag-body) t) ; self-closing tag (<img/> or <img>)
-                       ((eq slash 'right) t) ; self-closing tag (<hr/>)
-                       ((and (eq slash 'left) raw-tag-body) ; closing-tag (</title>)
-                        (setq back-until-tag-name tag-name)
-                        t)
                        (t ;; found parent!
                         (setq fin-selector
                               (if (equal tag-name "div")
