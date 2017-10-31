@@ -121,7 +121,7 @@ SUBEXP-DEPTH is 0 by default."
 (defun cakecrumbs-format-parents (parents)
   "PARENTS is a (no-propertized) string list"
   (mapconcat #'cakecrumbs-propertize-string
-             parent
+             parents
              (propertize cakecrumbs-separator 'face 'cakecrumbs-separator)))
 
 (defun cakecrumbs-generate-header-string ()
@@ -131,7 +131,7 @@ SUBEXP-DEPTH is 0 by default."
         (propertize "(cakecrumbs idle)" 'face 'cakecrumbs-ellipsis)
       (let* ((fin (cakecrumbs-format-parents parents))
              (ellipsis (or cakecrumbs-ellipsis "[...]"))
-             (ellipsis-len (length ellipsis-len))
+             (ellipsis-len (length ellipsis))
              (need-ellipsis nil))
         (while (> (+ (length fin) (if need-ellipsis ellipsis-len 0))
                   (window-body-width))
@@ -327,6 +327,10 @@ Find backward lines up to parent"
 (defun jjj ()
   (interactive)
   (message"%s" (cakecrumbs-jade-get-parents)))
+
+(defun ggg ()
+  (interactive)
+  (message"%s" (cakecrumbs-get-parents)))
 
 ;; (defun ttt ()
 ;;   (interactive)
