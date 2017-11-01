@@ -99,7 +99,8 @@ SUBEXP-DEPTH is 0 by default."
 (setq cakecrumbs-re-pseudo "::?[-A-z0-9_]+")
 (setq cakecrumbs-re-preprocessor "@[-A-z0-9_]+")
 
-(setq cakecrumbs-ignored-patterns '("\\.col-[a-z0-9-]+"))
+;; (setq cakecrumbs-ignored-patterns '("\\.col-[a-z0-9-]+"))  ; [FIXME] When parent only has .col-*
+(setq cakecrumbs-ignored-patterns '())
 
 (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
 (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
@@ -316,14 +317,9 @@ Find backward lines up to parent"
            (TAG-PATT "^ +\\([.#A-z0-9_-]+\\)")
            (in-parenthesis (nth 9 (syntax-ppss))))
       (while (progn
-               ;; (back-to-indentation)
                (cond ((bobp) nil)  ; break
-                     ((cakecrumbs-invisible-line-p)
-                      (forward-line -1)
-                      t)  ; continue
-                     ((string-match "^[\ t]+|" (cakecrumbs-current-line-string))
-                      (forward-line -1)
-                      t)  ; continue
+                     ((cakecrumbs-invisible-line-p) t)  ; continue
+                     ((string-match "^[\ t]+|" (cakecrumbs-current-line-string)) t)  ; continue
                      (in-parenthesis
                       (goto-char (car in-parenthesis)) ;; goto beginning of current parenthesis
                       (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string)))
@@ -333,11 +329,8 @@ Find backward lines up to parent"
                       nil) ; break
                      ((and (not in-parenthesis)
                            (>= (current-indentation) parent-indent-must-less-than)) ; absolutely not parent
-                      (forward-line -1)
                       t) ; continue
-                     ((>= (current-indentation) last-indent) ; absolutely not parent
-                      (forward-line -1)
-                      t) ; continue
+                     ((>= (current-indentation) last-indent) t) ; (absolutely not parent) continue
                      (t
                       (progn
                         (setq last-indent (min (current-indentation) last-indent))
@@ -346,7 +339,10 @@ Find backward lines up to parent"
                               (t  ; a tag!
                                (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string)))
                                nil) ; break
-                              ))))))
+                              )))))
+        (forward-line -1)
+        (back-to-indentation)
+        (setq in-parenthesis (nth 9 (syntax-ppss))))
       (if tag-name
           (list tag-name
                 (progn (back-to-indentation) (point))
@@ -368,9 +364,11 @@ Find backward lines up to parent"
                  nil))) ; break WHILE
       fin)))
 
+(defun ppss () (interactive) (message "%s" (syntax-ppss)))
+
 (defun j ()
   (interactive)
-  (message (format "(point) ==> %s,  %s" (point) (cakecrumbs-jade-get-parent))))
+  (message (format "(%s),  %s" (point) (cakecrumbs-jade-get-parent))))
 
 (defun jjj ()
   (interactive)
