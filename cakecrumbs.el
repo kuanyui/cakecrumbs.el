@@ -321,6 +321,9 @@ Find backward lines up to parent"
                      ((cakecrumbs-invisible-line-p)
                       (forward-line -1)
                       t)  ; continue
+                     ((string-match "^[\ t]+|" (cakecrumbs-current-line-string))
+                      (forward-line -1)
+                      t)  ; continue
                      (in-parenthesis
                       (goto-char (car in-parenthesis)) ;; goto beginning of current parenthesis
                       (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string)))
