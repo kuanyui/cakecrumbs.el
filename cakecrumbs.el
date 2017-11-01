@@ -99,7 +99,7 @@ SUBEXP-DEPTH is 0 by default."
 (setq cakecrumbs-re-pseudo "::?[-A-z0-9_]+")
 (setq cakecrumbs-re-preprocessor "@[-A-z0-9_]+")
 
-(setq cakecrumbs-ignore-pattern-class '("col-"))
+(setq cakecrumbs-ignored-patterns '("\\.col-[a-z0-9-]+"))
 
 (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
 (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
@@ -109,6 +109,9 @@ SUBEXP-DEPTH is 0 by default."
 
 (defun cakecrumbs-propertize-string (level-str)
   "Input is single-level string"
+  (mapc (lambda (patt)
+          (setq level-str (replace-regexp-in-string patt "" level-str)))
+        cakecrumbs-ignored-patterns)
   (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-tag level-str)))) ; tag
     (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-tag) level-str)))
   (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-id level-str)))) ; id
