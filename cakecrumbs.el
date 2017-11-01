@@ -69,6 +69,12 @@
     (((class color) (background dark)) (:inherit font-lock-variable-name-face)))
   "CSS [attribute=] selector" :group 'cakecrumbs-faces)
 
+(defface cakecrumbs-preprocessor
+  '((((class color) (background light)) (:inherit font-lock-preprocessor-face))
+    (((class color) (background dark)) (:inherit font-lock-preprocessor-face)))
+  "SCSS/LESS/Stylus @.+ or CSS @media" :group 'cakecrumbs-faces)
+
+
 (defun cakecrumbs-matched-positions-all (regexp string &optional subexp-depth)
   "Return a list of matched positions for REGEXP in STRING.
 SUBEXP-DEPTH is 0 by default."
@@ -86,11 +92,12 @@ SUBEXP-DEPTH is 0 by default."
 (setq ex "span.col-md-3.col-xs-6#test-hello")
 (setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
 
-(setq cakecrumbs-re-tag "^[^ .#:()]+")
+(setq cakecrumbs-re-tag "^[^ .#:&@()]+")
 (setq cakecrumbs-re-class "[.][-A-z0-9_]+")
 (setq cakecrumbs-re-id "#[-A-z0-9_]+")
 (setq cakecrumbs-re-attr "\\[[-A-z0-9_]+.*\\]")
-(setq cakecrumbs-re-pseudo ":[-A-z0-9_]+?")
+(setq cakecrumbs-re-pseudo "::?[-A-z0-9_]+")
+(setq cakecrumbs-re-preprocessor "@[-A-z0-9_]+")
 
 (setq cakecrumbs-ignore-pattern-class '("col-"))
 
@@ -117,6 +124,10 @@ SUBEXP-DEPTH is 0 by default."
   (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo level-str))) ; pseudo
     (if m (mapc (lambda (pair)
                   (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-pseudo) level-str))
+                m)))
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-preprocessor level-str))) ; preprocessor
+    (if m (mapc (lambda (pair)
+                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-preprocessor) level-str))
                 m)))
   level-str)
 
@@ -229,6 +240,7 @@ bool IN-TAG-ITSELF "
         ;; I don't want to follow web-mode's rapidly development.
         (while (let* ((tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
                       (raw-tag-body (if tag-pos (match-string-no-properties 1)))  ;; raw string in <(...)>
+                      (is-comment (if tag-pos (string-prefix-p "!--" raw-tag-body)))
                       (slash (cond ((string-prefix-p "/" raw-tag-body) 'left)
                                    ((string-suffix-p "/" raw-tag-body) 'right)
                                    (t nil)))
@@ -240,7 +252,8 @@ bool IN-TAG-ITSELF "
                      (setq tag-name (cond ((eq slash 'left)  (cakecrumbs-string-match "^/ *\\([^>< ]+\\)" 1 raw-tag-body))
                                           ((eq slash 'right) (cakecrumbs-string-match "[^>< ]+ *$" 0 raw-tag-body))
                                           (t                 (cakecrumbs-string-match "^[^>< ]+" 0 raw-tag-body)))))
-                 (cond ((null tag-pos) nil) ; nil: terminate while loop
+                 (cond (is-comment t)  ; t: continue
+                       ((null tag-pos) nil) ; nil: terminate while loop
                        ((eq slash 'right) t) ; self-closing tag (<hr/>)
                        ((eq slash 'left) ; closing-tag (</title>)
                         (setq back-until-tag-name tag-name)
@@ -267,7 +280,8 @@ bool IN-TAG-ITSELF "
   (let ((fin '())
         (last-parent-pos (or point (point))))
     (while (let ((parent-obj (cakecrumbs-html-get-parent last-parent-pos)))
-             (if (null (car parent-obj))
+             (if (or (null (car parent-obj))
+                     (null (nth 1 parent-obj)))
                  nil ; break
                (prog1 t ; continue
                  (push (car parent-obj) fin)
