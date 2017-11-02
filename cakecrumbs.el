@@ -329,8 +329,11 @@ bool IN-TAG-ITSELF "
 ;; Jade / Pug
 ;; ======================================================
 
+
 (defun cakecrumbs-invisible-line-p ()
   (string-match "^[ \t]*$" (cakecrumbs-current-line-string)))
+
+(setq cakecrumbs-jade-invalid-tag-pattern (regexp-opt '("if" "for" "each")))
 
 (defun cakecrumbs-jade-get-parent (&optional point)
   ;; [TODO] li: sapn()
@@ -358,7 +361,7 @@ Find backward lines up to parent"
                                  (back-to-indentation)
                                  (if (>= (current-indentation) init-indentation) t ; continue (absolutly not parent)
                                    (prog1 nil (setq found-parent t)))))) ; parent found! break
-                            ((string-match "^[\ t]+|" (cakecrumbs-current-line-string)) t)  ; continue
+                            ((string-match "^[ \t]*\\(|\\|-\\|//\\)" (cakecrumbs-current-line-string)) t)  ; continue
                             (t
                              (setq found-parent t)
                              nil) ; break
