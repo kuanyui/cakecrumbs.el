@@ -33,6 +33,11 @@
 (defvar cakecrumbs-separator " | ")
 (setq cakecrumbs-ellipsis "[...] ")
 
+(setq cakecrumbs-jade-major-modes   '(yajade-mode jade-mode pug-mode))
+(setq cakecrumbs-html-major-modes   '(html-mode web-mode nxml-mode sgml-mode))
+(setq cakecrumbs-scss-major-modes   '(scss-mode less-css-mode css-mode))
+(setq cakecrumbs-stylus-major-modes '(stylus-mode sass-mode))
+
 
 (defface cakecrumbs-ellipsis
   '((((class color) (background light)) (:inherit font-lock-comment-face))
@@ -201,11 +206,11 @@ SUBEXP-DEPTH is 0 by default."
       nil)))
 
 (defun cakecrumbs-get-parents (&optional point)
-  (cond ((memq major-mode '(scss-mode less-css-mode css-mode))
+  (cond ((memq major-mode cakecrumbs-scss-major-modes)
          (cakecrumbs-scss-get-parents point))
-        ((memq major-mode '(html-mode web-mode nxml-mode sgml-mode))
+        ((memq major-mode cakecrumbs-html-major-modes)
          (cakecrumbs-html-get-parents point))
-        ((memq major-mode '(html-mode yajade-mode jade-mode pug-mode))
+        ((memq major-mode cakecrumbs-jade-major-modes)
          (cakecrumbs-jade-get-parents point))))
 
 ;; ======================================================
@@ -230,20 +235,42 @@ SUBEXP-DEPTH is 0 by default."
 
 (defun s () (interactive) (message "%s" (syntax-ppss)))
 
+(defun cakecrumbs-cursor-within-string (&optional pos)
+  (nth 3 (syntax-ppss pos)))
+
+(defun cakecrumbs-html-search-backward-< ()
+  "return position or nil"
+  (if (memq major-mode cakecrumbs-html-major-modes)
+      (save-excursion
+        (re-search-backward "<"  0 :no-error)
+        (while (cond ((eq (point-min) (point)) nil) ; break
+                     ((not (memq major-mode cakecrumbs-html-major-modes)) nil)  ; break. Is out of mmm-mode possible?
+                     ((cakecrumbs-cursor-within-string) t) ; continue
+                     ((equal (buffer-substring-no-properties (point) (+ 4 (point))) "<!--") t)  ; continue
+                     )
+          (re-search-backward "<" 0 :no-error)))))
+(defun cakecrumbs-html-search-forward-> ()
+  "return position or nil"
+  (if (memq major-mode cakecrumbs-html-major-modes)
+      (save-excursion
+        (re-search-backward ">"  0 :no-error)
+        )))
+
 (defun cakecrumbs-html-get-parent (&optional point)
   "return list. (PARENT-TAG PARENT-POS IN-TAG-ITSELF).
 string PARENT-TAG has been formatted as CSS/Jade/Pug-liked.
 bool IN-TAG-ITSELF "
-  (interactive)
   (save-excursion
     (if point (goto-char point))
     (save-match-data
       (let (back-until-tag-name tag-pos fin-selector)
-        ;; Why not just `re-search-back' "<" then check if in paren via `syntax-ppss'?
-        ;; `web-mode' redefined `syntax-table', which makes `syntax-ppss' unable to check if in <...> paren || in attr string.
-        ;; I don't want to follow web-mode's rapidly development.
-        (while (let* ((tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
-                      (raw-tag-body (if tag-pos (match-string-no-properties 1)))  ;; raw string in <(...)>
+        ;; Why not just `re-search-back' "<" then check if in paren
+        ;; via `syntax-ppss'?  Because `web-mode' redefined
+        ;; `syntax-table', which makes `syntax-ppss' unable to check
+        ;; if in <...> paren || in attr string.  I don't want to
+        ;; follow web-mode's rapidly development.
+        (setq tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
+        (while (let* ((raw-tag-body (if tag-pos (match-string-no-properties 1)))  ;; raw string in <(...)>
                       (is-comment (if tag-pos (string-prefix-p "!--" raw-tag-body)))
                       (slash (cond ((string-prefix-p "/" raw-tag-body) 'left)
                                    ((string-suffix-p "/" raw-tag-body) 'right)
@@ -274,8 +301,8 @@ bool IN-TAG-ITSELF "
                                       (concat formatted-id formatted-classes)
                                     "div")
                                 (concat tag-name formatted-id formatted-classes)))
-                        nil)
-                       ))) ; WHILE
+                        nil))) ; WHILE COND
+          (setq tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))) ; WHILE BODY
         (list fin-selector tag-pos "[unimplemented]")
         ))))
 
@@ -293,7 +320,9 @@ bool IN-TAG-ITSELF "
                  ))))
     fin))
 
-(defun h () (interactive) (message "%s" (cakecrumbs-html-get-parent)))
+
+(defun a () (interactive) (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
+(defun h () (interactive) (message "%s, %s" (point) (cakecrumbs-html-get-parent)))
 (defun hhh () (interactive) (message "%s" (cakecrumbs-html-get-parents)))
 
 ;; ======================================================
@@ -318,7 +347,7 @@ Find backward lines up to parent"
            (last-indent parent-indent-must-less-than)
            (tag-name nil)
            (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)"))
-      (if (or (eq 0 init-cursor-column)
+      (if (or (and (eq 0 init-cursor-column) (not (member (thing-at-point 'char t) '(" " "\t"))))
               (and (eq 0 parent-indent-must-less-than) (not init-in-parenthesis)))
           nil
         (progn (while (cond ((bobp) nil)  ; break
