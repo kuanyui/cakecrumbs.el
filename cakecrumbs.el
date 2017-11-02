@@ -338,43 +338,37 @@ bool IN-TAG-ITSELF "
 Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
-    (let* ((in-parenthesis (nth 9 (syntax-ppss)))
-           (init-in-parenthesis (nth 9 (syntax-ppss)))
+    (let* ((init-in-parenthesis (nth 9 (syntax-ppss)))
            (init-cursor-column (current-column))
-           (parent-indent-must-less-than (if (cakecrumbs-invisible-line-p)
-                                             (prog1 (current-column) (forward-line -1))
-                                           (progn (back-to-indentation) (current-indentation))))
-           (last-indent parent-indent-must-less-than)
-           (tag-name nil)
+           (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
+                                 (prog1 (current-column) (forward-line -1))
+                               (progn (back-to-indentation) (current-indentation))))
+           (in-parenthesis init-in-parenthesis)
+           (found-parent nil)
            (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)"))
-      (if (or (and (eq 0 init-cursor-column) (not (member (thing-at-point 'char t) '(" " "\t"))))
-              (and (eq 0 parent-indent-must-less-than) (not init-in-parenthesis)))
+      (if (or (and (eq 0 init-cursor-column) (eq 0 init-indentation))
+              (and (eq 0 init-indentation) (not init-in-parenthesis)))
           nil
         (progn (while (cond ((bobp) nil)  ; break
                             ((cakecrumbs-invisible-line-p) t)  ; continue
+                            ((>= (current-indentation) init-indentation)
+                             (if (not in-parenthesis) t  ; continue (absolutly not parent)
+                               (progn
+                                 (goto-char (car in-parenthesis)) ;; goto beginning of current parenthesis
+                                 (back-to-indentation)
+                                 (if (>= (current-indentation) init-indentation) t ; continue (absolutly not parent)
+                                   (prog1 nil (setq found-parent t)))))) ; parent found! break
                             ((string-match "^[\ t]+|" (cakecrumbs-current-line-string)) t)  ; continue
-                            (in-parenthesis
-                             (goto-char (car in-parenthesis)) ;; goto beginning of current parenthesis
-                             (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string)))
-                             nil) ; break
-                            ((and (not in-parenthesis)
-                                  (>= (current-indentation) parent-indent-must-less-than)) ; absolutely not parent
-                             t) ; continue
-                            ((>= (current-indentation) last-indent) t) ; (absolutely not parent) continue
                             (t
-                             (progn
-                               (setq last-indent (min (current-indentation) last-indent))
-                               (cond ((eq last-indent 0) ; root
-                                      nil) ; break
-                                     (t  ; a tag!
-                                      (setq tag-name (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string)))
-                                      nil) ; break
-                                     ))))
+                             (setq found-parent t)
+                             nil) ; break
+                            )  ; WHILE TEST ends here
+                 ;; WHILE BODY
                  (forward-line -1)
                  (back-to-indentation)
                  (setq in-parenthesis (nth 9 (syntax-ppss))))
-               (if tag-name
-                   (list tag-name
+               (if found-parent
+                   (list (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string))
                          (progn (back-to-indentation) (point))
                          (if init-in-parenthesis t))
                  nil
