@@ -333,7 +333,12 @@ bool IN-TAG-ITSELF "
 (defun cakecrumbs-invisible-line-p ()
   (string-match "^[ \t]*$" (cakecrumbs-current-line-string)))
 
-(setq cakecrumbs-jade-invalid-tag-pattern (regexp-opt '("if" "for" "each")))
+(setq cakecrumbs-jade-invalid-tag-pattern
+      ;; In fact, I tested tag `if-xxx', `each-xxx' with pug/jade compiler, but they will cause error..
+      (concat "^[ \t]*"
+              (regexp-opt
+               '("if" "else" "for" "in" "each" "case" "when" "default" "block" "extends" "var"
+                 "append" "prepend" "include" "yield" "mixin"))))
 
 (defun cakecrumbs-jade-get-parent (&optional point)
   ;; [TODO] li: sapn()
@@ -362,6 +367,7 @@ Find backward lines up to parent"
                                  (if (>= (current-indentation) init-indentation) t ; continue (absolutly not parent)
                                    (prog1 nil (setq found-parent t)))))) ; parent found! break
                             ((string-match "^[ \t]*\\(|\\|-\\|//\\)" (cakecrumbs-current-line-string)) t)  ; continue
+                            ((string-match cakecrumbs-jade-invalid-tag-pattern (cakecrumbs-current-line-string)) t)  ; continue
                             (t
                              (setq found-parent t)
                              nil) ; break
