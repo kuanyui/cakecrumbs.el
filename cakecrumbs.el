@@ -346,16 +346,16 @@ bool IN-TAG-ITSELF "
 Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
-    (let* ((init-in-parenthesis (nth 9 (syntax-ppss)))
+    (let* ((init-in-parenthesis-of-parent (nth 9 (syntax-ppss)))
            (init-cursor-column (current-column))
            (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
                                  (prog1 (current-column) (forward-line -1))
                                (progn (back-to-indentation) (current-indentation))))
-           (in-parenthesis init-in-parenthesis)
+           (in-parenthesis init-in-parenthesis-of-parent)
            (found-parent nil)
            (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)"))
       (if (or (and (eq 0 init-cursor-column) (eq 0 init-indentation))
-              (and (eq 0 init-indentation) (not init-in-parenthesis)))
+              (and (eq 0 init-indentation) (not init-in-parenthesis-of-parent)))
           nil
         (progn (while (cond ((bobp) nil)  ; break
                             ((cakecrumbs-invisible-line-p) t)  ; continue
@@ -374,15 +374,15 @@ Find backward lines up to parent"
                             )  ; WHILE TEST ends here
                  ;; WHILE BODY
                  (forward-line -1)
+                 (setq init-in-parenthesis-of-parent nil)
                  (back-to-indentation)
                  (setq in-parenthesis (nth 9 (syntax-ppss))))
                (if found-parent
                    (list (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string))
                          (progn (back-to-indentation) (point))
-                         (if init-in-parenthesis t))
+                         (if init-in-parenthesis-of-parent t))
                  nil
-                 ))
-        ))))
+                 ))))))
 
 (defun cakecrumbs-jade-get-parents (&optional point)
   (save-excursion
