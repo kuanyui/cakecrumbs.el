@@ -238,23 +238,60 @@ SUBEXP-DEPTH is 0 by default."
 (defun cakecrumbs-cursor-within-string (&optional pos)
   (nth 3 (syntax-ppss pos)))
 
-(defun cakecrumbs-html-search-backward-< ()
-  "return position or nil"
+(defun cakecrumbs-html-search-backward-< (&optional pos)
+  "return the position of backwardly nearest syntactic < (not in
+string && not in comment) from POS. If not found, return nil
+
+`syntax-ppss' cannot detect comment in web-mode, so use such way."
+  ;; Don't just check wether in paren via `syntax-ppss' because
+  ;; `web-mode' redefined `syntax-table', which makes `syntax-ppss'
+  ;; unable to check if in <...> paren || in attr string.
   (if (memq major-mode cakecrumbs-html-major-modes)
       (save-excursion
-        (re-search-backward "<"  0 :no-error)
-        (while (cond ((eq (point-min) (point)) nil) ; break
-                     ((not (memq major-mode cakecrumbs-html-major-modes)) nil)  ; break. Is out of mmm-mode possible?
-                     ((cakecrumbs-cursor-within-string) t) ; continue
-                     ((equal (buffer-substring-no-properties (point) (+ 4 (point))) "<!--") t)  ; continue
-                     )
-          (re-search-backward "<" 0 :no-error)))))
-(defun cakecrumbs-html-search-forward-> ()
-  "return position or nil"
+        (if pos (goto-char pos))
+        (let ((fin nil))
+          (while (progn
+                   (setq fin (re-search-backward "<"  nil :no-error))
+                   (cond ((null fin) nil)
+                         ((eq (point-min) (point)) nil) ; break
+                         ((not (memq major-mode cakecrumbs-html-major-modes)) nil)  ; break. Is this condition possible in mmm-mode?
+                         ((cakecrumbs-cursor-within-string) t) ; continue
+                         ((equal (buffer-substring-no-properties (point) (+ 4 (point))) "<!--") t) ; continue
+                         (t nil))) ; found
+            (setq fin nil))
+          fin))))
+
+(defun cakecrumbs-html-search-forward-> (&optional pos)
+  "return the position of forwardly nearest syntactic > (not in
+string && not in comment) from POS. If not found, return nil"
   (if (memq major-mode cakecrumbs-html-major-modes)
       (save-excursion
-        (re-search-backward ">"  0 :no-error)
-        )))
+        (if pos (goto-char pos))
+        (let ((fin nil))
+          (while (progn
+                   (setq fin (re-search-forward ">"  nil :no-error))
+                   (cond ((null fin) nil)
+                         ((eq (point-max) (point)) nil) ; break
+                         ((not (memq major-mode cakecrumbs-html-major-modes)) nil)  ; break. Is this condition possible in mmm-mode?
+                         ((cakecrumbs-cursor-within-string) t) ; continue
+                         ((equal (buffer-substring-no-properties (- (point) 3) (point)) "-->") t) ; continue
+                         (t nil))) ; found
+            (setq fin nil))
+          fin))))
+
+(defun cakecrumbs-html-search-backward-nearest-tag (&optional pos)
+  "Get position of the nearest tag from POS (or `point' when POS is nil).
+Always search backwardly, and comment tag never involved.
+
+If not found (no valid HTML tag existed before POS), returns nil;
+else, returns a list with following elements:
+
+0: int,   current point
+1: bool,  if current point is in a HTML tag, t. (comment is ignored)
+2. int,   the position of the found tag begins from.
+3. int,   the position of the found tag ends at.
+"
+  )
 
 (defun cakecrumbs-html-get-parent (&optional point)
   "return list. (PARENT-TAG PARENT-POS IN-TAG-ITSELF).
@@ -264,10 +301,7 @@ bool IN-TAG-ITSELF "
     (if point (goto-char point))
     (save-match-data
       (let (back-until-tag-name tag-pos fin-selector)
-        ;; Why not just `re-search-back' "<" then check if in paren
-        ;; via `syntax-ppss'?  Because `web-mode' redefined
-        ;; `syntax-table', which makes `syntax-ppss' unable to check
-        ;; if in <...> paren || in attr string.  I don't want to
+        I don't want to
         ;; follow web-mode's rapidly development.
         (setq tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
         (while (let* ((raw-tag-body (if tag-pos (match-string-no-properties 1)))  ;; raw string in <(...)>
@@ -342,7 +376,7 @@ bool IN-TAG-ITSELF "
 
 (defun cakecrumbs-jade-get-parent (&optional point)
   ;; [TODO] li: sapn()
-  "return value (parent-tag parent-tag-point in-tag-itself).
+  "return value (PARENT-TAG PARENT-TAG-POINT IN-PARENT-TAG-ITSELF).
 Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
