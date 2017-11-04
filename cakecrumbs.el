@@ -279,19 +279,44 @@ string && not in comment) from POS. If not found, return nil"
             (setq fin nil))
           fin))))
 
-(defun cakecrumbs-html-search-backward-nearest-tag (&optional pos)
+(defun cakecrumbs-html-search-nearest-tag (&optional pos)
   "Get position of the nearest tag from POS (or `point' when POS is nil).
 Always search backwardly, and comment tag never involved.
 
 If not found (no valid HTML tag existed before POS), returns nil;
 else, returns a list with following elements:
 
-0: int,   current point
-1: bool,  if current point is in a HTML tag, t. (comment is ignored)
-2. int,   the position of the found tag begins from.
-3. int,   the position of the found tag ends at.
+0. int,    the position of the found tag begins from.
+1. int,    the position of the found tag ends at.
+2: bool,   if current point is in a HTML tag, t. (comment is ignored)
+3. symbol, type: `self-closing-tag', `start-tag', `end-tag'
+4. string, tag name.
+5. string, id name.
+6. list,   class names.
+
 "
-  )
+  (let* ((begin (cakecrumbs-html-search-backward-< pos))
+         (end (if begin (cakecrumbs-html-search-forward-> begin)))
+         (in-tag (if begin (eq begin (cakecrumbs-html-search-forward-> pos)))))
+    (if (null begin)
+        nil
+      (let ((raw (replace-regexp-in-string "\\(?:\n\\| \\|\t\\)+" " " (buffer-substring-no-properties begin end))))
+        (message raw)
+        ))))
+
+;; (defun cakecrumbs-html-parse-tag (begin end)
+;;   "Parse the tag between BEGIN and END
+;; Return a list:
+
+;; 0. symbol,      type: `self-closing-tag', `start-tag', `end-tag'
+;; 1. string,      tag name.
+;; 2. string,      id name.
+;; 2. string list, class names.
+;; "
+;;   (let ((raw ))
+;;     (message raw
+;;     ))
+
 
 (defun cakecrumbs-html-get-parent (&optional point)
   "return list. (PARENT-TAG PARENT-POS IN-TAG-ITSELF).
@@ -356,7 +381,7 @@ bool IN-TAG-ITSELF "
 
 
 (defun a () (interactive) (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
-(defun h () (interactive) (message "%s, %s" (point) (cakecrumbs-html-get-parent)))
+(defun h () (interactive) (message "%s, %s" (point) (cakecrumbs-html-search-nearest-tag)))
 (defun hhh () (interactive) (message "%s" (cakecrumbs-html-get-parents)))
 
 ;; ======================================================
