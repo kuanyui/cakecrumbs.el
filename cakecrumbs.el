@@ -288,7 +288,7 @@ else, returns a list with following elements:
 
 0. int,    the position of the found tag begins from.
 1. int,    the position of the found tag ends at.
-2: bool,   if current point is in a HTML tag, t. (comment is ignored)
+2: bool,   if current point is within this HTML tag, t.
 3. symbol, type: `self-closing-tag', `start-tag', `end-tag'
 4. string, tag name.
 5. string, id name.
@@ -300,9 +300,20 @@ else, returns a list with following elements:
          (in-tag (if begin (eq begin (cakecrumbs-html-search-forward-> pos)))))
     (if (null begin)
         nil
-      (let ((raw (replace-regexp-in-string "\\(?:\n\\| \\|\t\\)+" " " (buffer-substring-no-properties begin end))))
-        (message raw)
-        ))))
+      (let* ((raw (replace-regexp-in-string "\\(?:\n\\| \\|\t\\)+" " " (buffer-substring-no-properties (1+ begin) (1- end))))
+             (tag-role (cond ((string-match "^ */" raw) 'end-tag)
+                             ((string-match "/ *$" raw) 'self-closing-tag)
+                             (t 'start-tag)))
+             (tag-name (if (eq tag-role 'end-tag)
+                           (cakecrumbs-string-match "\\([A-z0-9_-]+\\)$" 1 raw)
+                         (cakecrumbs-string-match "^\\([A-z0-9_-]+\\)" 1 raw)))
+             (tag-id (if (memq tag-role '('self-closing-tag 'start-tag))
+                         (cakecrumbs-string-match "id ?= ?['\"]?\\([A-z0-9_-]+\\)['\"]?" 1 raw)))
+             (tag-classes (if (memq tag-role '('self-closing-tag 'start-tag))
+                              (cakecrumbs-string-match "class ?= ?['\"]?\\([A-z0-9_- ]+\\)['\"]?" 1 raw))))
+        (if tag-id (setq tag-id (string-trim tag-id)))
+        (if tag-classes (setq tag-classes (split-string (string-trim tag-classes) " +")))
+        (list begin end in-tag tag-role tag-name tag-id tag-classes)))))
 
 ;; (defun cakecrumbs-html-parse-tag (begin end)
 ;;   "Parse the tag between BEGIN and END
