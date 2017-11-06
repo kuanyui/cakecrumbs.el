@@ -324,50 +324,62 @@ else, returns a list with following elements:
 string PARENT-TAG has been formatted as CSS/Jade/Pug-liked.
 bool IN-TAG-ITSELF "
   (save-excursion
-    (let ((pos (or from-pos (point)))
-          (m (cakecrumbs-html-search-nearest-tag pos))
-          (init-in-paren (nth 2 m))
-          (search-for-start-tag nil))
-      (while (progn
-               (cond ((null m) nil) ; break
-                     (init-in-paren nil) ; break
-                     ((if (and search-for-start-tag (equal search-for-start-tag )))
-                      ))
-               )
-        (setq m (cakecrumbs-html-search-nearest-tag pos))
-        ()
-        )
+    (let* ((pos (or from-pos (point)))
+           (m (cakecrumbs-html-search-nearest-tag from-pos))
+           (m-pos (nth 0 m))
+           (init-in-paren (nth 2 m))
+           (m-tag-role (nth 3 m))
+           (m-tag-name (nth 4 m))
+           (stack '())
+           )
+      (while (cond ((null m) nil) ; break
+                   (init-in-paren nil) ; break (the tag currently within is just parent)
+                   ((and (null stack) (eq m-tag-role 'start-tag)) nil) ; break (found parent)
+                   (t t)) ; continue
+        ;; WHILE BODY
+        ;; stack manipulate
+        (cond ((eq m-tag-role 'start-tag)
+               (if (equal (car stack) m-tag-name)
+                   (pop stack)))
+              ((eq m-tag-role 'end-tag)
+               (push m-tag-name stack))
+              (t nil)) ; ignore
+        (setq m (cakecrumbs-html-search-nearest-tag m-pos))
+        (setq m-pos (nth 0 m))
+        (setq m-tag-role (nth 3 m))
+        (setq m-tag-name (nth 4 m)))
       (if m
           (let* ((-id (nth 5 m))
                  (id (if -id (concat "#" -id)))
                  (-kls (nth 5 m))
                  (kls (if -kls (mapconcat (lambda (s) (concat "." s)) -kls "")))
                  (-name (nth 4 m))
-                 (name (if (and kls (equal name "div"))
+                 (name (if (and kls (equal -name "div"))
                            ""
-                         name)))
+                         -name)))
             (list
              (concat name id kls)
              (nth 0 m)
              (nth 2 m)))))))
 
 
-  (defun cakecrumbs-html-get-parents (&optional point)
-    (let ((fin '())
-          (last-parent-pos (or point (point))))
-      (while (let ((parent-obj (cakecrumbs-html-get-parent last-parent-pos)))
-               (if (or (null (car parent-obj))
-                       (null (nth 1 parent-obj)))
-                   nil ; break
-                 (prog1 t ; continue
-                   (push (car parent-obj) fin)
-                   (setq last-parent-pos (nth 1 parent-obj))
-                   ))))
-      fin))
+(defun cakecrumbs-html-get-parents (&optional point)
+  (let ((fin '())
+        (last-parent-pos (or point (point))))
+    (while (let ((parent-obj (cakecrumbs-html-get-parent last-parent-pos)))
+             (if (or (null (car parent-obj))
+                     (null (nth 1 parent-obj)))
+                 nil ; break
+               (prog1 t ; continue
+                 (push (car parent-obj) fin)
+                 (setq last-parent-pos (nth 1 parent-obj))
+                 ))))
+    fin))
 
 
 (defun a () (interactive) (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
 (defun h () (interactive) (message "%s, %s" (point) (cakecrumbs-html-search-nearest-tag)))
+(defun hh () (interactive) (message "%s" (cakecrumbs-html-get-parent)))
 (defun hhh () (interactive) (message "%s" (cakecrumbs-html-get-parents)))
 
 ;; ======================================================
