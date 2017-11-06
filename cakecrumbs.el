@@ -292,12 +292,12 @@ else, returns a list with following elements:
 3. symbol, type: `self-closing-tag', `start-tag', `end-tag'
 4. string, tag name.
 5. string, id name.
-6. list,   class names.
+6. list,   class nqames.
 
 "
   (let* ((begin (cakecrumbs-html-search-backward-< pos))
          (end (if begin (cakecrumbs-html-search-forward-> begin)))
-         (in-tag (if begin (eq begin (cakecrumbs-html-search-forward-> pos)))))
+         (in-tag (if end (eq end (cakecrumbs-html-search-forward-> pos)))))
     (if (null begin)
         nil
       (let* ((raw (replace-regexp-in-string "\\(?:\n\\| \\|\t\\)+" " " (buffer-substring-no-properties (1+ begin) (1- end))))
@@ -311,84 +311,59 @@ else, returns a list with following elements:
                          (cakecrumbs-string-match "id ?= ?['\"]?\\([A-z0-9_-]+\\)['\"]?" 1 raw)))
              (tag-classes (if (memq tag-role '('self-closing-tag 'start-tag))
                               (cakecrumbs-string-match "class ?= ?['\"]?\\([A-z0-9_- ]+\\)['\"]?" 1 raw))))
+        (if (and (eq tag-role 'start-tag)
+                 (equal tag-name '("img" "link")))
+            (setq tag-role 'self-closing-tag))
         (if tag-id (setq tag-id (string-trim tag-id)))
         (if tag-classes (setq tag-classes (split-string (string-trim tag-classes) " +")))
         (list begin end in-tag tag-role tag-name tag-id tag-classes)))))
 
-;; (defun cakecrumbs-html-parse-tag (begin end)
-;;   "Parse the tag between BEGIN and END
-;; Return a list:
 
-;; 0. symbol,      type: `self-closing-tag', `start-tag', `end-tag'
-;; 1. string,      tag name.
-;; 2. string,      id name.
-;; 2. string list, class names.
-;; "
-;;   (let ((raw ))
-;;     (message raw
-;;     ))
-
-
-(defun cakecrumbs-html-get-parent (&optional point)
-  "return list. (PARENT-TAG PARENT-POS IN-TAG-ITSELF).
+(defun cakecrumbs-html-get-parent (&optional from-pos)
+  "return list. (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF).
 string PARENT-TAG has been formatted as CSS/Jade/Pug-liked.
 bool IN-TAG-ITSELF "
   (save-excursion
-    (if point (goto-char point))
-    (save-match-data
-      (let (back-until-tag-name tag-pos fin-selector)
-        I don't want to
-        ;; follow web-mode's rapidly development.
-        (setq tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
-        (while (let* ((raw-tag-body (if tag-pos (match-string-no-properties 1)))  ;; raw string in <(...)>
-                      (is-comment (if tag-pos (string-prefix-p "!--" raw-tag-body)))
-                      (slash (cond ((string-prefix-p "/" raw-tag-body) 'left)
-                                   ((string-suffix-p "/" raw-tag-body) 'right)
-                                   (t nil)))
-                      (raw-classes (if tag-pos (cakecrumbs-string-match " class ?= ?[\"']\\(.+?\\)[\"']" 1 raw-tag-body)))
-                      (formatted-classes (if raw-classes (concat "." (string-join (split-string raw-classes) "."))))
-                      (raw-id (if tag-pos (cakecrumbs-string-match " id ?= ?[\"']\\(.+?\\)[\"']" 1 raw-tag-body)))
-                      (formatted-id (if raw-id (concat "#" (string-trim raw-id)))))
-                 (if tag-pos
-                     (setq tag-name (cond ((eq slash 'left)  (cakecrumbs-string-match "^/ *\\([^>< ]+\\)" 1 raw-tag-body))
-                                          ((eq slash 'right) (cakecrumbs-string-match "[^>< ]+ *$" 0 raw-tag-body))
-                                          (t                 (cakecrumbs-string-match "^[^>< ]+" 0 raw-tag-body)))))
-                 (cond (is-comment t)  ; t: continue
-                       ((null tag-pos) nil) ; nil: terminate while loop
-                       ((eq slash 'right) t) ; self-closing tag (<hr/>)
-                       ((eq slash 'left) ; closing-tag (</title>)
-                        (setq back-until-tag-name tag-name)
-                        t)
-                       (back-until-tag-name
-                        (if (string-equal back-until-tag-name tag-name) ; if equal, set to nil && continue. else, continue.
-                            (progn (setq back-until-tag-name nil) t))
-                        t) ; always continue while loop
-                       ((string-match "^\\(link\\|a\\|img\\)\\b" raw-tag-body) t) ; self-closing tag (<img/> or <img>)
-                       (t ;; found parent!
-                        (setq fin-selector
-                              (if (equal tag-name "div")
-                                  (if (or formatted-id formatted-classes)
-                                      (concat formatted-id formatted-classes)
-                                    "div")
-                                (concat tag-name formatted-id formatted-classes)))
-                        nil))) ; WHILE COND
-          (setq tag-pos (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))) ; WHILE BODY
-        (list fin-selector tag-pos "[unimplemented]")
-        ))))
+    (let ((pos (or from-pos (point)))
+          (m (cakecrumbs-html-search-nearest-tag pos))
+          (init-in-paren (nth 2 m))
+          (search-for-start-tag nil))
+      (while (progn
+               (cond ((null m) nil) ; break
+                     (init-in-paren nil) ; break
+                     ((if (and search-for-start-tag (equal search-for-start-tag )))
+                      ))
+               )
+        (setq m (cakecrumbs-html-search-nearest-tag pos))
+        ()
+        )
+      (if m
+          (let* ((-id (nth 5 m))
+                 (id (if -id (concat "#" -id)))
+                 (-kls (nth 5 m))
+                 (kls (if -kls (mapconcat (lambda (s) (concat "." s)) -kls "")))
+                 (-name (nth 4 m))
+                 (name (if (and kls (equal name "div"))
+                           ""
+                         name)))
+            (list
+             (concat name id kls)
+             (nth 0 m)
+             (nth 2 m)))))))
 
 
-(defun cakecrumbs-html-get-parents (&optional point)
-  (let ((fin '())
-        (last-parent-pos (or point (point))))
-    (while (let ((parent-obj (cakecrumbs-html-get-parent last-parent-pos)))
-             (if (or (null (car parent-obj))
-                     (null (nth 1 parent-obj)))
-                 nil ; break
-               (prog1 t ; continue
-                 (push (car parent-obj) fin)
-                 (setq last-parent-pos (nth 1 parent-obj))
-                 ))))
-    fin))
+  (defun cakecrumbs-html-get-parents (&optional point)
+    (let ((fin '())
+          (last-parent-pos (or point (point))))
+      (while (let ((parent-obj (cakecrumbs-html-get-parent last-parent-pos)))
+               (if (or (null (car parent-obj))
+                       (null (nth 1 parent-obj)))
+                   nil ; break
+                 (prog1 t ; continue
+                   (push (car parent-obj) fin)
+                   (setq last-parent-pos (nth 1 parent-obj))
+                   ))))
+      fin))
 
 
 (defun a () (interactive) (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
