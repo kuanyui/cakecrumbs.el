@@ -164,6 +164,15 @@ SUBEXP-DEPTH is 0 by default."
             (concat (propertize ellipsis-str 'face 'cakecrumbs-ellipsis) fin)
           fin)))))
 
+
+
+(defun cakecrumbs-show-full ()
+  (interactive)
+  (let ((parents (cakecrumbs-get-parents)))
+    (if (null parents)
+        (message (propertize "[Cakecrumbs] Not in a supported area!" 'face 'cakecrumbs-ellipsis))
+      (message (cakecrumbs-format-parents parents)))))
+
 (defun zzz () (interactive) (message (cakecrumbs-generate-header-string)))
 
 (defun cakecrumbs-install-header ()
@@ -206,6 +215,7 @@ SUBEXP-DEPTH is 0 by default."
       nil)))
 
 (defun cakecrumbs-get-parents (&optional point)
+  "return string list, containing parents."
   (cond ((memq major-mode cakecrumbs-scss-major-modes)
          (cakecrumbs-scss-get-parents point))
         ((memq major-mode cakecrumbs-html-major-modes)
@@ -213,21 +223,45 @@ SUBEXP-DEPTH is 0 by default."
         ((memq major-mode cakecrumbs-jade-major-modes)
          (cakecrumbs-jade-get-parents point))))
 
+(defun cakecrumbs-get-parent ()
+  "return a list: (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF)"
+  (cond ((memq major-mode cakecrumbs-scss-major-modes)
+         (cakecrumbs-scss-get-parent point))
+        ((memq major-mode cakecrumbs-html-major-modes)
+         (cakecrumbs-html-get-parent point))
+        ((memq major-mode cakecrumbs-jade-major-modes)
+         (cakecrumbs-jade-get-parent point))))
+
 ;; ======================================================
 ;; SCSS / LESS
 ;; ======================================================
+(defun cakecrumbs-scss-extract-selector-from-pos (&optional pos)
+  "Search backward. Use with `cakecrumbs-scss-get-parent'"
+  (save-excursion
+    (if pos (goto-char pos))
+    (let* ((to pos)
+           (from (progn (re-search-backward "[,;{}^\n]" nil t)
+                        (1+ (point)))))
+      (string-trim (buffer-substring from to)))))
+
 (defun cakecrumbs-scss-get-parents (&optional point)
   "Return a string list. Each string is the selectors at its level."
   (save-excursion
-    (let* ((parent-pos-list (nth 9 (syntax-ppss point)))
-           (parent-list (mapcar (lambda (pos)
-                                  (goto-char pos)
-                                  (let* ((to (point))
-                                         (from (progn (re-search-backward "[,;{}^\n]" nil t)
-                                                      (1+ (point)))))
-                                    (string-trim (buffer-substring from to)))) parent-pos-list)))
-      parent-list
-      )))
+    (let* ((parent-pos-list (nth 9 (syntax-ppss point))))
+      (mapcar #'cakecrumbs-scss-extract-selector-from-pos parent-pos-list))))
+
+(defun cakecrumbs-scss-get-parent (&optional from-pos)
+  "return a list if found parent: (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF);
+otherwise, nil.
+IN-TAG-ITSELF is always nil."
+  (let ((left-paren-pos (car (last (nth 9 (syntax-ppss from-pos))))))
+    (if left-paren-pos
+        (list
+         (cakecrumbs-scss-extract-selector-from-pos left-paren-pos)
+         left-paren-pos
+         nil))))
+
+(defun c () (interactive) (message "%s" (cakecrumbs-scss-get-parent)))
 
 ;; ======================================================
 ;; HTML
@@ -399,7 +433,7 @@ bool IN-TAG-ITSELF "
 
 (defun cakecrumbs-jade-get-parent (&optional point)
   ;; [TODO] li: sapn()
-  "return value (PARENT-TAG PARENT-TAG-POINT IN-PARENT-TAG-ITSELF).
+  "return value (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF).
 Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
@@ -515,6 +549,8 @@ Find backward lines up to parent"
   (if cakecrumbs-mode
       (cakecrumbs-install-header)
     (cakecrumbs-uninstall-header)))
+
+(defalias 'cakecrumbs 'cakecrumbs-mode)
 
 (provide 'cakecrumbs)
 ;;; cakecrumbs.el ends here
