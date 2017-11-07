@@ -298,7 +298,7 @@ else, returns a list with following elements:
   (let* ((begin (cakecrumbs-html-search-backward-< pos))
          (end (if begin (cakecrumbs-html-search-forward-> begin)))
          (in-tag (if end (eq end (cakecrumbs-html-search-forward-> pos)))))
-    (if (null begin)
+    (if (or (null begin) (null end))
         nil
       (let* ((raw (replace-regexp-in-string "\\(?:\n\\| \\|\t\\)+" " " (buffer-substring-no-properties (1+ begin) (1- end))))
              (tag-role (cond ((string-match-p "^ */" raw) 'end-tag)
@@ -351,7 +351,7 @@ bool IN-TAG-ITSELF "
       (if m
           (let* ((-id (nth 5 m))
                  (id (if -id (concat "#" -id)))
-                 (-kls (nth 5 m))
+                 (-kls (nth 6 m))
                  (kls (if -kls (mapconcat (lambda (s) (concat "." s)) -kls "")))
                  (-name (nth 4 m))
                  (name (if (and kls (equal -name "div"))
