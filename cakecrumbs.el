@@ -420,6 +420,8 @@ bool IN-TAG-ITSELF "
 ;; Jade / Pug
 ;; ======================================================
 
+(defun cakecrumbs-in-paren-p ()
+  (> (car (syntax-ppss)) 0))
 
 (defun cakecrumbs-invisible-line-p ()
   (string-match-p "^[ \t]*$" (cakecrumbs-current-line-string)))
@@ -454,11 +456,12 @@ This Jade/Pug syntax requires analyze line from left (BOL) to right. e.g.:
     (if pos (goto-char pos))
     (if (cakecrumbs-jade-comment-line-p)
         nil
-      (let* ((bol-pos (save-excursion (beginning-of-line) (point)))
+      (let* ((init-pos pos)
+             (bol-pos (save-excursion (beginning-of-line) (point)))
              (eol-pos (save-excursion (end-of-line) (point)))
              (m nil)
-             (init-in-paren (not (eq (syntax-ppss) 0))))
-        (re-search-forward "[( ]" eol-pos :no-error)
+             (init-in-paren (cakecrumbs-in-paren-p)))
+        (re-search-forward "\\((\\| \\|$\\)" eol-pos :no-error)
         (setq m (re-search-backward ": +\\([#.A-z0-9_-]+\\)" bol-pos :no-error))
         (while (cond ((null m) nil) ; break (not found)
                      ((nth 3 (syntax-ppss)) t) ; continue (cursor in string)
@@ -478,25 +481,23 @@ return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 Always search backwardly, and comment tag never involved."
   (save-excursion
     (if pos (goto-char pos))
-    (let* ((init-in-parenthesis (nth 9 (syntax-ppss)))
-           (init-cursor-column (current-column))
-           (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
-                                 (prog1 (current-column) (forward-line -1))
-                               (progn (current-indentation))))
-           (in-parenthesis init-in-parenthesis)
-           (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)")
-           (m (progn (end-of-line)
-                     (re-search-backward TAG-PATT nil :no-error))))
+    (let* ((init-in-parenthesis (cakecrumbs-in-paren-p))
+           (PATTERN "^ *\\([.#A-z0-9_-]+\\)")
+           (m (progn (if (> (current-column) (current-indentation))
+                         (end-of-line))
+                     (re-search-backward PATTERN nil :no-error))))
       (while (cond ((null m) nil) ; break (not found)
                    ((> (car (syntax-ppss)) 0) t) ; continue (cursor in parenthesis)
                    (t nil)  ; break (found)
                    )
-        (setq m (re-search-backward TAG-PATT nil :no-error)))
+        (setq m (re-search-backward PATTERN nil :no-error)))
       (if m
           (list (match-string 1)
                 (progn (back-to-indentation) (point))
                 (if init-in-parenthesis t)
                 )))))
+
+;; (defun ttt () (interactive) (re-search-backward "^ *\\([.#A-z0-9_-]+\\)" nil :no-error))
 
 (defun cakecrumbs-jade-get-parent (&optional point)
   "return value (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF).
@@ -504,7 +505,9 @@ Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
     (let* ((init-in-parenthesis (nth 9 (syntax-ppss)))
-           (init-indentation (current-indentation))
+           (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
+                                 (prog1 (current-column) (forward-line -1))
+                               (progn (current-indentation))))
            (found-parent nil)
            (possible-parent nil))
       (while (and found-parent (not (eobp))))
