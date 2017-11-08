@@ -439,10 +439,17 @@ bool IN-TAG-ITSELF "
 
 return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 
+If current line is comment, return nil. Always search backwardly.
+
 <ex> the `span' and `i' is nested-tag, `a' is plain-tag
+
     a(href='/:8080'): span(): i hello
 
-If current line is comment, return nil. Always search backwardly."
+This Jade/Pug syntax requires analyze line from left (BOL) to right. e.g.:
+
+    a(href='/'): div: span(ng-class='hello'): i twitter: This is my twitter!
+
+'This' is not a tag, because 'i' break the nest chain."
   (save-excursion
     (if pos (goto-char pos))
     (if (cakecrumbs-jade-comment-line-p)
@@ -471,12 +478,12 @@ return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 Always search backwardly, and comment tag never involved."
   (save-excursion
     (if pos (goto-char pos))
-    (let* ((init-in-parenthesis-of-parent (nth 9 (syntax-ppss)))
+    (let* ((init-in-parenthesis (nth 9 (syntax-ppss)))
            (init-cursor-column (current-column))
            (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
                                  (prog1 (current-column) (forward-line -1))
                                (progn (current-indentation))))
-           (in-parenthesis init-in-parenthesis-of-parent)
+           (in-parenthesis init-in-parenthesis)
            (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)")
            (m (progn (end-of-line)
                      (re-search-backward TAG-PATT nil :no-error))))
@@ -488,54 +495,20 @@ Always search backwardly, and comment tag never involved."
       (if m
           (list (match-string 1)
                 (progn (back-to-indentation) (point))
-                (if init-in-parenthesis-of-parent t)
+                (if init-in-parenthesis t)
                 )))))
 
 (defun cakecrumbs-jade-get-parent (&optional point)
-  ;; [TODO] li: sapn()
   "return value (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF).
 Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
-    (let* ((init-in-parenthesis-of-parent (nth 9 (syntax-ppss)))
-           (init-cursor-column (current-column))
-           (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
-                                 (prog1 (current-column) (forward-line -1))
-                               (progn (current-indentation))))
-           (in-parenthesis init-in-parenthesis-of-parent)
-           (in-string nil)
+    (let* ((init-in-parenthesis (nth 9 (syntax-ppss)))
+           (init-indentation (current-indentation))
            (found-parent nil)
-           (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)"))
-      (if (or (and (eq 0 init-cursor-column) (eq 0 init-indentation))
-              (and (eq 0 init-indentation) (not init-in-parenthesis-of-parent)))
-          nil
-        (progn (while (cond ((bobp) nil)  ; break
-                            ((cakecrumbs-invisible-line-p) t)  ; continue
-                            ;; current
-                            ((>= (current-indentation) init-indentation)
-                             (if (not in-parenthesis) t  ; continue (absolutly not parent)
-                               (progn ; in-parenthesis
-                                 (goto-char (car in-parenthesis)) ;; goto beginning of current parenthesis
-                                 (back-to-indentation)
-                                 (if (>= (current-indentation) init-indentation) t ; continue (absolutly not parent)
-                                   (prog1 nil (setq found-parent t)))))) ; parent found! break
-                            ((string-match "^[ \t]*\\(|\\|-\\|//\\)" (cakecrumbs-current-line-string)) t)  ; continue
-                            ((string-match cakecrumbs-jade-invalid-tag-pattern (cakecrumbs-current-line-string)) t)  ; continue
-                            (t
-                             (setq found-parent t)
-                             nil) ; break
-                            )  ; WHILE TEST ends here
-                 ;; WHILE BODY
-                 (setq init-in-parenthesis-of-parent nil)
-                 (let ((ppss (syntax-ppss)))
-                   (setq in-string (nth 3 ppss))
-                   (setq in-parenthesis (nth 9 ppss)))
-                 (if found-parent
-                     (list (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string))
-                           (progn (back-to-indentation) (point))
-                           (if init-in-parenthesis-of-parent t))
-                   nil
-                   )))))))
+           (possible-parent nil))
+      (while (and found-parent (not (eobp))))
+      )))
 
 (defun cakecrumbs-jade-get-parents (&optional point)
   (save-excursion
