@@ -435,7 +435,8 @@ bool IN-TAG-ITSELF "
   (string-match-p "^[ \t]*//" (cakecrumbs-current-line-string)))
 
 (defun cakecrumbs-jade-search-nearest-nested-tag-in-current-line (&optional pos)
-  "Get the nearest nested-tag from POS (or `point' when POS is nil) within current line.
+  "Search for the nearest nested-tag from POS (or `point' when POS is nil) within current line.
+
 return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 
 <ex> the `span' and `i' is nested-tag, `a' is plain-tag
@@ -449,50 +450,45 @@ If current line is comment, return nil. Always search backwardly."
       (let* ((bol-pos (save-excursion (beginning-of-line) (point)))
              (eol-pos (save-excursion (end-of-line) (point)))
              (m nil)
-             (ppss (syntax-ppss))
-             (init-in-paren (not (eq ppss 0))))
+             (init-in-paren (not (eq (syntax-ppss) 0))))
         (re-search-forward "[( ]" eol-pos :no-error)
         (setq m (re-search-backward ": +\\([#.A-z0-9_-]+\\)" bol-pos :no-error))
         (while (cond ((null m) nil) ; break (not found)
-                     ((nth 3 ppss) t) ; continue (cursor in string)
-                     ((not (zerop (nth 0 ppss))) t) ; continue (cursor in parenthesis)
+                     ((nth 3 (syntax-ppss)) t) ; continue (cursor in string)
+                     ((not (zerop (nth 0 (syntax-ppss)))) t) ; continue (cursor in parenthesis)
                      (t nil)  ; break (found)
                      )
-          (setq m (re-search-backward ": +\\([#.A-z0-9_-]+\\)" bol-pos :no-error))
-          (setq ppss (syntax-ppss)))
+          (setq m (re-search-backward ": +\\([#.A-z0-9_-]+\\)" bol-pos :no-error)))
         (if m
             (list (match-string 1)
                   (point)
                   init-in-paren))))))
 
 (defun cakecrumbs-jade-search-nearest-plain-tag (&optional pos)
-  "Get position of the nearest plain-tag from POS (or `point' when POS is nil).
+  "Search for the nearest plain-tag from POS (or `point' when POS is nil).
 return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 
 Always search backwardly, and comment tag never involved."
   (save-excursion
     (if pos (goto-char pos))
-    (let* ((ppss (syntax-ppss))
-           (init-in-parenthesis-of-parent (nth 9 ppss))
+    (let* ((init-in-parenthesis-of-parent (nth 9 (syntax-ppss)))
            (init-cursor-column (current-column))
            (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
                                  (prog1 (current-column) (forward-line -1))
                                (progn (current-indentation))))
            (in-parenthesis init-in-parenthesis-of-parent)
            (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)")
-           (m (progn (if (> init-cursor-column init-indentation)
-                         (end-of-line))
+           (m (progn (end-of-line)
                      (re-search-backward TAG-PATT nil :no-error))))
       (while (cond ((null m) nil) ; break (not found)
-                   ((not (zerop (nth 0 ppss))) t) ; continue (cursor in parenthesis)
+                   ((> (car (syntax-ppss)) 0) t) ; continue (cursor in parenthesis)
                    (t nil)  ; break (found)
                    )
-        (setq m (re-search-backward TAG-PATT nil :no-error))
-        (setq ppss (syntax-ppss)))
+        (setq m (re-search-backward TAG-PATT nil :no-error)))
       (if m
           (list (match-string 1)
                 (progn (back-to-indentation) (point))
-                init-in-parenthesis-of-parent
+                (if init-in-parenthesis-of-parent t)
                 )))))
 
 (defun cakecrumbs-jade-get-parent (&optional point)
