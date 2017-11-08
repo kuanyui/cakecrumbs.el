@@ -422,7 +422,7 @@ bool IN-TAG-ITSELF "
 
 
 (defun cakecrumbs-invisible-line-p ()
-  (string-match "^[ \t]*$" (cakecrumbs-current-line-string)))
+  (string-match-p "^[ \t]*$" (cakecrumbs-current-line-string)))
 
 (setq cakecrumbs-jade-invalid-tag-pattern
       ;; In fact, I tested tag `if-xxx', `each-xxx' with pug/jade compiler, but they will cause error..
@@ -430,6 +430,61 @@ bool IN-TAG-ITSELF "
               (regexp-opt
                '("if" "else" "for" "in" "each" "case" "when" "default" "block" "extends" "var"
                  "append" "prepend" "include" "yield" "mixin"))))
+
+(defun cakecrumbs-jade-comment-line-p ()
+  (string-match-p "^[ \t]*//" (cakecrumbs-current-line-string)))
+
+(defun cakecrumbs-jade-search-nearest-nested-tag-in-current-line (&optional pos)
+  "Get the nearest nested-tag from POS (or `point' when POS is nil) within current line.
+return a list: (ELEM-SELECTOR TAG-POS)
+
+<ex> the `span' and `i' is nested-tag, `a' is plain-tag
+    a(href='/:8080'): span(): i hello
+
+If current line is comment, return nil. Always search backwardly."
+  (save-excursion
+    (if pos (goto-char pos))
+    (if (cakecrumbs-jade-comment-line-p)
+        nil
+      (let* ((bol-pos (save-excursion (beginning-of-line) (point)))
+             (m (re-search-backward ": +\\([#.A-z0-9_-]+\\)" bol-pos :no-error))
+             (ppss (syntax-ppss)))
+        (while (cond ((null m) nil) ; break (not found)
+                     ((nth 3 ppss) t) ; continue (cursor in string)
+                     ((not (zerop (nth 0 ppss))) t) ; continue (cursor in parenthesis)
+                     (t nil)  ; break (found)
+                     )
+          (setq m (re-search-backward ": +\\([#.A-z0-9_-]+\\)" bol-pos :no-error))
+          (setq ppss (syntax-ppss)))
+        (if m
+            (list (match-string 1) (point)))))))
+
+(defun cakecrumbs-jade-search-nearest-plain-tag (&optional pos)
+  "Get position of the nearest plain-tag from POS (or `point' when POS is nil).
+Always search backwardly, and comment tag never involved."
+  (save-excursion
+    (if pos (goto-char pos))
+    (let* ((init-in-parenthesis-of-parent (nth 9 (syntax-ppss)))
+           (init-cursor-column (current-column))
+           (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
+                                 (prog1 (current-column) (forward-line -1))
+                               (progn (current-indentation))))
+           (in-parenthesis init-in-parenthesis-of-parent)
+           (ppss (syntax-ppss))
+           (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)")
+           (m (progn (if (> init-cursor-column init-indentation)
+                         (end-of-line))
+                     (re-search-backward TAG-PATT nil :no-error))))
+      (while (cond ((null m) nil) ; break (not found)
+                   ((not (zerop (nth 0 ppss))) t) ; continue (cursor in parenthesis)
+                   (t nil)  ; break (found)
+                   )
+        (setq m (re-search-backward TAG-PATT nil :no-error))
+        (setq ppss (syntax-ppss)))
+      (if m
+          (list (match-string 1)
+                (progn (back-to-indentation) (point))
+                )))))
 
 (defun cakecrumbs-jade-get-parent (&optional point)
   ;; [TODO] li: sapn()
@@ -441,8 +496,9 @@ Find backward lines up to parent"
            (init-cursor-column (current-column))
            (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
                                  (prog1 (current-column) (forward-line -1))
-                               (progn (back-to-indentation) (current-indentation))))
+                               (progn (current-indentation))))
            (in-parenthesis init-in-parenthesis-of-parent)
+           (in-string nil)
            (found-parent nil)
            (TAG-PATT "^ *\\([.#A-z0-9_-]+\\)"))
       (if (or (and (eq 0 init-cursor-column) (eq 0 init-indentation))
@@ -450,9 +506,10 @@ Find backward lines up to parent"
           nil
         (progn (while (cond ((bobp) nil)  ; break
                             ((cakecrumbs-invisible-line-p) t)  ; continue
+                            ;; current
                             ((>= (current-indentation) init-indentation)
                              (if (not in-parenthesis) t  ; continue (absolutly not parent)
-                               (progn
+                               (progn ; in-parenthesis
                                  (goto-char (car in-parenthesis)) ;; goto beginning of current parenthesis
                                  (back-to-indentation)
                                  (if (>= (current-indentation) init-indentation) t ; continue (absolutly not parent)
@@ -464,16 +521,16 @@ Find backward lines up to parent"
                              nil) ; break
                             )  ; WHILE TEST ends here
                  ;; WHILE BODY
-                 (forward-line -1)
                  (setq init-in-parenthesis-of-parent nil)
-                 (back-to-indentation)
-                 (setq in-parenthesis (nth 9 (syntax-ppss))))
-               (if found-parent
-                   (list (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string))
-                         (progn (back-to-indentation) (point))
-                         (if init-in-parenthesis-of-parent t))
-                 nil
-                 ))))))
+                 (let ((ppss (syntax-ppss)))
+                   (setq in-string (nth 3 ppss))
+                   (setq in-parenthesis (nth 9 ppss)))
+                 (if found-parent
+                     (list (cakecrumbs-string-match TAG-PATT 1 (cakecrumbs-current-line-string))
+                           (progn (back-to-indentation) (point))
+                           (if init-in-parenthesis-of-parent t))
+                   nil
+                   )))))))
 
 (defun cakecrumbs-jade-get-parents (&optional point)
   (save-excursion
@@ -492,7 +549,11 @@ Find backward lines up to parent"
 
 (defun j ()
   (interactive)
-  (message (format "(%s),  %s" (point) (cakecrumbs-jade-get-parent))))
+  (message (format "(%s),  %s" (point) (cakecrumbs-jade-search-nearest-nested-tag-in-current-line))))
+
+(defun jj ()
+  (interactive)
+  (message (format "(%s),  %s" (point) (cakecrumbs-jade-search-nearest-plain-tag))))
 
 (defun jjj ()
   (interactive)
