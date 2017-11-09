@@ -490,16 +490,20 @@ If current line is comment, return nil.
                         (>= (point) eol-pos)))
           (let ((ch (thing-at-point 'char t)))
             (cond ((eq state 'plain-began)
-                   (eq ))
-                  ))
-          (right-char)
-          )
-        (if (or found-pos)
-            (list found-selector found-pos init-in-paren))))))
+                   (let ((m (cakecrumbs-jade--try-jump-over-plain-tag-to-its-end)))
+                     (setq found)
+                     (if (null m) (setq break t))
+                     )
+
+                   ))
+            (right-char)
+            )
+          (if (or found-pos)
+              (list found-selector found-pos init-in-paren)))))))
 
 ;; (defun ch () (interactive) (message (thing-at-point 'char t)))
 
-(defun cakecrumbs-jade--try-goto-end-of-plain-tag ()
+(defun cakecrumbs-jade--try-jump-over-plain-tag-to-its-end ()
   "Search forward from `point',
 If found a possible plain-tag, jump to end of it and return
 selector string; else, return nil without jump.
@@ -508,6 +512,33 @@ selector string; else, return nil without jump.
 `cakecrumbs-jade-search-nearest-nested-tag-in-current-line' and
 should be used by it only."
   (interactive)
+  (let* ((selector-patt "^[A-z#._][-A-z0-9#._]*$")
+         (begin (point))
+         (e (save-excursion (re-search-forward "[(=: ]" (cakecrumbs-eol-pos) t)))
+         (end (if e (1- e))))
+    (if (null end)
+        nil ; return
+      (let* ((selector (buffer-substring-no-properties begin end))
+             (valid (string-match-p selector-patt selector)))
+        (if (not valid)
+            nil ; return
+          (progn (goto-char end)
+                 (if (equal "(" (thing-at-point 'char t))
+                     (forward-sexp))
+                 selector))))))
+
+(defun cakecrumbs-jade--try-jump-over-nested-tag-to-its-end ()
+  "Search forward from `point',
+If found a possible nested-tag, jump to end of it and return
+selector string; else, return nil without jump.
+
+(buffer-substring (point) (1+ (point))) must equal to \": \"
+
+[WARNING] This function is designed for
+`cakecrumbs-jade-search-nearest-nested-tag-in-current-line' and
+should be used by it only."
+  (interactive)
+
   (let* ((selector-patt "^[A-z#._][-A-z0-9#._]*$")
          (begin (point))
          (e (save-excursion (re-search-forward "[(=: ]" (cakecrumbs-eol-pos) t)))
