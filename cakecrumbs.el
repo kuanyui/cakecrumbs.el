@@ -436,43 +436,92 @@ bool IN-TAG-ITSELF "
 (defun cakecrumbs-jade-comment-line-p ()
   (string-match-p "^[ \t]*//" (cakecrumbs-current-line-string)))
 
+(defun cakecrumbs-jade-string-line-p ()
+  (string-match-p "^[ \t]*[|]" (cakecrumbs-current-line-string)))
+
+(defun cakecrumbs-jade-line-starts-with-tag ()
+  (string-match-p "^[ \t]*[A-z]" (cakecrumbs-current-line-string)))
+
+(defun cakecrumbs-bol-pos ()
+  (save-excursion (beginning-of-line) (point)))
+
+(defun cakecrumbs-eol-pos ()
+  (save-excursion (end-of-line) (point)))
+
 (defun cakecrumbs-jade-search-nearest-nested-tag-in-current-line (&optional pos)
-  "Search for the nearest nested-tag from POS (or `point' when POS is nil) within current line.
+  "Search for the nearest 'nested-tag' from POS (or `point' when POS is nil) within current line.
+
+plain-tag is totally ignored by this function. See `cakecrumbs-jade-search-nearest-plain-tag'
 
 return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 
-If current line is comment, return nil. Always search backwardly.
+If current line is comment, return nil.
 
 <ex> the `span' and `i' is nested-tag, `a' is plain-tag
 
     a(href='/:8080'): span(): i hello
-
-This Jade/Pug syntax requires analyze line from left (BOL) to right. e.g.:
-
-    a(href='/'): div: span(ng-class='hello'): i twitter: This is my twitter!
-
-'This' is not a tag, because 'i' break the nest chain."
+"
+  ;; Jade/Pug's syntax requires analyze line from left (BOL) to right. e.g.:
+  ;;
+  ;;   a(href='/'): div: span(ng-class='hello'): i twitter: This is my twitter!
+  ;;
+  ;; 'This' is not a tag, because 'i' break the nest chain.
+  ;;
+  ;; == states ==
+  ;;                                          , -(founded start pos > cursor)-> `nest-ended' (return last-1 founded)
+  ;; `init' -> `plain-began' --> `nest-began' --> `nest-ended' (return last founded)
+  ;;       `-> (eol)         `-> `no-nest' (return nil)
   (save-excursion
     (if pos (goto-char pos))
-    (if (cakecrumbs-jade-comment-line-p)
+    (if (not (cakecrumbs-jade-line-starts-with-tag))
         nil
       (let* ((init-pos pos)
-             (bol-pos (save-excursion (beginning-of-line) (point)))
-             (eol-pos (save-excursion (end-of-line) (point)))
-             (m nil)
-             (init-in-paren (cakecrumbs-in-paren-p)))
-        (re-search-forward "\\((\\| \\|$\\)" eol-pos :no-error)
-        (setq m (re-search-backward ": +\\([#.A-z0-9_-]+\\)" bol-pos :no-error))
-        (while (cond ((null m) nil) ; break (not found)
-                     ((nth 3 (syntax-ppss)) t) ; continue (cursor in string)
-                     ((not (zerop (nth 0 (syntax-ppss)))) t) ; continue (cursor in parenthesis)
-                     (t nil)  ; break (found)
-                     )
-          (setq m (re-search-backward ": +\\([#.A-z0-9_-]+\\)" bol-pos :no-error)))
-        (if m
-            (list (match-string 1)
-                  (point)
-                  init-in-paren))))))
+             (eol-pos (cakecrumbs-eol-pos))
+             (init-in-paren (cakecrumbs-in-paren-p))
+             (state 'plain-began)
+             (found-selector nil)  ; string
+             (found-pos nil)  ; colon pos (or tag pos is better?)
+             (break nil)
+             )
+        (back-to-indentation)
+        (while (not (or break
+                        (eq state 'nest-ended)
+                        (eq state 'no-nest)
+                        (>= (point) eol-pos)))
+          (let ((ch (thing-at-point 'char t)))
+            (cond ((eq state 'plain-began)
+                   (eq ))
+                  ))
+          (right-char)
+          )
+        (if (or found-pos)
+            (list found-selector found-pos init-in-paren))))))
+
+;; (defun ch () (interactive) (message (thing-at-point 'char t)))
+
+(defun cakecrumbs-jade--try-goto-end-of-plain-tag ()
+  "Search forward from `point',
+If found a possible plain-tag, jump to end of it and return
+selector string; else, return nil without jump.
+
+ [WARNING] This function is designed for
+`cakecrumbs-jade-search-nearest-nested-tag-in-current-line' and
+should be used by it only."
+  (interactive)
+  (let* ((selector-patt "^[A-z#._][-A-z0-9#._]*$")
+         (begin (point))
+         (e (save-excursion (re-search-forward "[(=: ]" (cakecrumbs-eol-pos) t)))
+         (end (if e (1- e))))
+    (if (null end)
+        nil ; return
+      (let* ((selector (buffer-substring-no-properties begin end))
+             (valid (string-match-p selector-patt selector)))
+        (if (not valid)
+            nil ; return
+          (progn (goto-char end)
+                 (if (equal "(" (thing-at-point 'char t))
+                     (forward-sexp))
+                 selector))))))
 
 (defun cakecrumbs-jade-search-nearest-plain-tag (&optional pos)
   "Search for the nearest plain-tag from POS (or `point' when POS is nil).
