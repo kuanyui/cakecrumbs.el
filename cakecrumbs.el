@@ -503,10 +503,16 @@ If current line is comment, return nil.
 
 ;; (defun ch () (interactive) (message (thing-at-point 'char t)))
 
-(defun cakecrumbs-jade--try-jump-over-plain-tag-to-its-end ()
+(defun cakecrumbs-jade--try-jump-over-tag-to-its-end ()
   "Search forward from `point',
-If found a possible plain-tag, jump to end of it and return
+If found a possible tag, jump to end of it and return
 selector string; else, return nil without jump.
+
+This function only jump and return selector, won't validate if it
+a real tag / plain-tag / nested-tag.
+
+To jump-over nested-tag, use
+`cakecrumbs-jade--try-jump-over-nested-tag-to-its-end'
 
  [WARNING] This function is designed for
 `cakecrumbs-jade-search-nearest-nested-tag-in-current-line' and
@@ -514,45 +520,34 @@ should be used by it only."
   (interactive)
   (let* ((selector-patt "^[A-z#._][-A-z0-9#._]*$")
          (begin (point))
-         (e (save-excursion (re-search-forward "[(=: ]" (cakecrumbs-eol-pos) t)))
-         (end (if e (1- e))))
-    (if (null end)
-        nil ; return
-      (let* ((selector (buffer-substring-no-properties begin end))
-             (valid (string-match-p selector-patt selector)))
-        (if (not valid)
-            nil ; return
-          (progn (goto-char end)
-                 (if (equal "(" (thing-at-point 'char t))
-                     (forward-sexp))
-                 selector))))))
+         (e (save-excursion (re-search-forward "\\(?:[(=: ]\\|$\\)" (cakecrumbs-eol-pos) t)))  ; because $, alwawys non-nil
+         (end (if (eq e (cakecrumbs-eol-pos))
+                  e
+                (1- e))))
+    (let* ((selector (buffer-substring-no-properties begin end))
+           (valid (string-match-p selector-patt selector)))
+      (if (not valid)
+          nil ; return
+        (progn (goto-char end)
+               (if (equal "(" (thing-at-point 'char t))
+                   (forward-sexp))
+               selector)))))
 
 (defun cakecrumbs-jade--try-jump-over-nested-tag-to-its-end ()
   "Search forward from `point',
 If found a possible nested-tag, jump to end of it and return
-selector string; else, return nil without jump.
+selector string; else, return nil without jump. That is to say:
 
-(buffer-substring (point) (1+ (point))) must equal to \": \"
+ (buffer-substring (point) (+ 2 (point))) must equal to \": \"
+otherwise, always return nil without jump.
 
-[WARNING] This function is designed for
+WARNING: This function is designed for
 `cakecrumbs-jade-search-nearest-nested-tag-in-current-line' and
 should be used by it only."
   (interactive)
-
-  (let* ((selector-patt "^[A-z#._][-A-z0-9#._]*$")
-         (begin (point))
-         (e (save-excursion (re-search-forward "[(=: ]" (cakecrumbs-eol-pos) t)))
-         (end (if e (1- e))))
-    (if (null end)
-        nil ; return
-      (let* ((selector (buffer-substring-no-properties begin end))
-             (valid (string-match-p selector-patt selector)))
-        (if (not valid)
-            nil ; return
-          (progn (goto-char end)
-                 (if (equal "(" (thing-at-point 'char t))
-                     (forward-sexp))
-                 selector))))))
+  (if (equal ": " (buffer-substring-no-properties (point) (+ 2 (point))))
+      (progn (right-char 2)
+             (cakecrumbs-jade--try-jump-over-tag-to-its-end))))
 
 (defun cakecrumbs-jade-search-nearest-plain-tag (&optional pos)
   "Search for the nearest plain-tag from POS (or `point' when POS is nil).
