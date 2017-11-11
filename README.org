@@ -1,0 +1,46 @@
+* Cakecrumbs.el
+Display parents' chain on header for:
+  - HTML
+  - Jade / Pug
+  - SCSS / LESS
+  - Stylus / Sass
+
+** Screenshot
+[[file:demo.gif]]
+
+** Settings
+#+BEGIN_QUOTE
+MELPA is not ready yet. Please wait.
+#+END_QUOTE
+
+#+BEGIN_SRC elisp
+  ;; =======================================================
+  ;; Cakecrumbs
+  ;; =======================================================
+  ;; Specify all major-mode (`cakecrumbs' decide how to deal with
+  ;; cursor's context by variable `major-mode'.)
+  (setq cakecrumbs-html-major-modes   '(html-mode web-mode nxml-mode sgml-mode))
+  (setq cakecrumbs-jade-major-modes   '(yajade-mode jade-mode pug-mode))
+  (setq cakecrumbs-scss-major-modes   '(scss-mode less-css-mode css-mode))
+  (setq cakecrumbs-stylus-major-modes '(stylus-mode sass-mode))  ; currently, sass-mode use the same rule with stylus-mode
+
+  ;; Auto `add-hook' for above major-mode.  (Auto enable `cakecrumbs'
+  ;; for the major-modes which have specify in above variables)
+  (cakecrumbs-auto-setup)
+
+  ;; Set to number to refresh after idling N seconds.
+  ;; Set to nil, refresh without any delay.
+  (setq cakecrumbs-refresh-delay-seconds 0.1)
+
+  ;; Appearances
+  (setq cakecrumbs-separator " | ")
+  (setq cakecrumbs-ellipsis "[...] ")
+
+  ;; Ignore some patterns in selector string
+  (setq cakecrumbs-ignored-patterns '(
+                                      "[.]col-[a-z][a-z]-[0-9]+"  ; Bootstrap's .col-*
+                                      ))
+#+END_SRC
+
+** License
+GPLv3
