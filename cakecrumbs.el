@@ -233,37 +233,6 @@ SUBEXP-DEPTH is 0 by default."
          (cakecrumbs-jade-get-parent point))))
 
 ;; ======================================================
-;; SCSS / LESS
-;; ======================================================
-(defun cakecrumbs-scss-extract-selector-from-pos (&optional pos)
-  "Search backward. Use with `cakecrumbs-scss-get-parent'"
-  (save-excursion
-    (if pos (goto-char pos))
-    (let* ((to pos)
-           (from (progn (re-search-backward "[,;{}^\n]" nil t)
-                        (1+ (point)))))
-      (string-trim (buffer-substring from to)))))
-
-(defun cakecrumbs-scss-get-parents (&optional point)
-  "Return a string list. Each string is the selectors at its level."
-  (save-excursion
-    (let* ((parent-pos-list (nth 9 (syntax-ppss point))))
-      (mapcar #'cakecrumbs-scss-extract-selector-from-pos parent-pos-list))))
-
-(defun cakecrumbs-scss-get-parent (&optional from-pos)
-  "return a list if found parent: (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF);
-otherwise, nil.
-IN-TAG-ITSELF is always nil."
-  (let ((left-paren-pos (car (last (nth 9 (syntax-ppss from-pos))))))
-    (if left-paren-pos
-        (list
-         (cakecrumbs-scss-extract-selector-from-pos left-paren-pos)
-         left-paren-pos
-         nil))))
-
-(defun c () (interactive) (message "%s" (cakecrumbs-scss-get-parent)))
-
-;; ======================================================
 ;; HTML
 ;; ======================================================
 
@@ -411,7 +380,6 @@ bool IN-TAG-ITSELF "
     fin))
 
 
-(defun a () (interactive) (re-search-backward "< *\\(\\(?:.\\|\n\\)*?\\) *>" 0 t))
 (defun h () (interactive) (message "%s, %s" (point) (cakecrumbs-html-search-nearest-tag)))
 (defun hh () (interactive) (message "%s" (cakecrumbs-html-get-parent)))
 (defun hhh () (interactive) (message "%s" (cakecrumbs-html-get-parents)))
@@ -423,6 +391,9 @@ bool IN-TAG-ITSELF "
 (defun cakecrumbs-in-paren-p ()
   "return nearest paren's beginning pos"
   (car (nth 9 (syntax-ppss))))
+
+(defun cakecrumbs-in-comment-p ()
+  (nth 4 (syntax-ppss)))
 
 (defun cakecrumbs-invisible-line-p ()
   (string-match-p "^[ \t]*$" (cakecrumbs-current-line-string)))
@@ -479,8 +450,6 @@ All comment-tags and nested-tags are ignored."
                 (if init-in-parenthesis t)
                 )))))
 
-;; (defun ttt () (interactive) (re-search-backward "^ *\\([.#A-z0-9_-]+\\)" nil :no-error))
-
 (defun cakecrumbs-jade-get-parent (&optional point)
   "return value (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF).
 Find backward lines up to parent"
@@ -523,28 +492,101 @@ Find backward lines up to parent"
       fin)))
 
 (defun ppss () (interactive) (message "%s" (syntax-ppss)))
-
 (defun j () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-jade-search-nearest-plain-tag))))
 (defun jj () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-jade-get-parent))))
 (defun jjj () (interactive) (message"%s" (cakecrumbs-jade-get-parents)))
 
-(defun ggg ()
-  (interactive)
-  (message"%s" (cakecrumbs-get-parents)))
+;; ======================================================
+;; SCSS / LESS
+;; ======================================================
+(defun cakecrumbs-scss-extract-selector-from-pos (&optional pos)
+  "Search backward. Use with `cakecrumbs-scss-get-parent'"
+  (save-excursion
+    (if pos (goto-char pos))
+    (let* ((to pos)
+           (from (progn (re-search-backward "[,;{}^\n]" nil t)
+                        (1+ (point)))))
+      (string-trim (buffer-substring from to)))))
 
-;; (defun ttt ()
-;;   (interactive)
-;;   (save-excursion
-;;     (message "%s" (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))))
+(defun cakecrumbs-scss-get-parents (&optional point)
+  "Return a string list. Each string is the selectors at its level."
+  (save-excursion
+    (let* ((parent-pos-list (nth 9 (syntax-ppss point))))
+      (mapcar #'cakecrumbs-scss-extract-selector-from-pos parent-pos-list))))
 
-;; (defun sss ()
-;;   (interactive)
-;;   (message (format "POS ==> %s, CONTEXT ==> %s" (point) (save-excursion (sgml-get-context)))))
+(defun cakecrumbs-scss-get-parent (&optional from-pos)
+  "return a list if found parent: (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF);
+otherwise, nil.
+IN-TAG-ITSELF is always nil."
+  (let ((left-paren-pos (car (last (nth 9 (syntax-ppss from-pos))))))
+    (if left-paren-pos
+        (list
+         (cakecrumbs-scss-extract-selector-from-pos left-paren-pos)
+         left-paren-pos
+         nil))))
 
-;; In nxml-mode,  `nxml-backward-up-element' to go up to parent.
-;; In web-mode, C-c C-e u parent element (up) (`web-mode-element-parent-position' (point))
+(defun c () (interactive) (message "%s" (cakecrumbs-scss-get-parent)))
+
+;; ======================================================
+;; Stylus / Sass
+;; ======================================================
+;; Sass and Stylus has some small differences.
+;; Following is valid for Stylus:
+;;
+;;  .tags > .tag
+;;    &.foo  {background-color: #afd7ff; color: #005f87;}
+;;    &.bar  {background-color: #afd7ff; color: #005f87;}
+;;
+;; Sass not support brackets like this.
+;;
+;; However, I don't want to deal with such condition because I've
+;; started to lose my patience on this project.
+
+(defun cakecrumbs-stylus-get-parent (&optional point)
+  "return value (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF).
+Find backward lines up to parent
+Currently IN-TAG-ITSELF is always nil."
+  (save-excursion
+    (if point (goto-char point))
+    (let* ((PATTERN "^ *\\([^/][^,]+\\)")
+           (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
+                                 (current-column)
+                               (current-indentation)))
+           (m nil)
+           (found-parent nil)
+           (continue t))
+      (while continue
+        (setq m (re-search-backward PATTERN nil :no-error))
+        (if (and m
+                 (< (cakecrumbs-get-indentation-at-pos m) init-indentation))
+            (setq found-parent (list (string-trim (match-string-no-properties 1))
+                                     m
+                                     nil)))
+        (if (or (null m) found-parent)
+            (setq continue nil)))
+      found-parent)))
+
+(defun cakecrumbs-stylus-get-parents (&optional point)
+  "return string list or nil."
+  (save-excursion
+    (let ((fin '())
+          (parent-obj (cakecrumbs-stylus-get-parent point))
+          (continue t))
+      (if parent-obj
+          (push (car parent-obj) fin)
+        (setq continue nil))
+      (while continue
+        (setq parent-obj (cakecrumbs-stylus-get-parent (nth 1 parent-obj)))
+        (if parent-obj
+            (push (car parent-obj) fin)
+          (setq continue nil)))
+      fin)))
 
 
+
+
+(defun ss () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-stylus-get-parent))))
+(defun sss () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-stylus-get-parents))))
 
 ;; ======================================================
 ;; Idle Timer
