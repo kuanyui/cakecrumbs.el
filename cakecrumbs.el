@@ -20,7 +20,7 @@
 
 ;;; Commentary:
 
-;;
+;; Life is painful, see Github:   https://github.com/kuanyui/cakecrumbs.el
 
 ;;; Code:
 
