@@ -159,92 +159,6 @@ This is useless in `web-mode'."
       nil)))
 
 ;; ======================================================
-;; Main
-;; ======================================================
-
-(defun cakecrumbs-propertize-string (level-str)
-  "Input is single-level string"
-  (mapc (lambda (patt)
-          (setq level-str (replace-regexp-in-string patt "" level-str)))
-        cakecrumbs-ignored-patterns)
-  (if (equal "" level-str) (setq level-str "div"))
-  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-tag level-str)))) ; tag
-    (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-tag) level-str)))
-  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-id level-str)))) ; id
-    (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-id) level-str)))
-  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-class level-str))) ; class
-    (if m (mapc (lambda (pair)
-                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-class) level-str))
-                m)))
-  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-attr level-str))) ; attr
-    (if m (mapc (lambda (pair)
-                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-attr) level-str))
-                m)))
-  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo level-str))) ; pseudo
-    (if m (mapc (lambda (pair)
-                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-pseudo) level-str))
-                m)))
-  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-preprocessor level-str))) ; preprocessor
-    (if m (mapc (lambda (pair)
-                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-preprocessor) level-str))
-                m)))
-  level-str)
-
-(defun cakecrumbs-format-parents (parents)
-  "PARENTS is a (no-propertized) string list"
-  (mapconcat #'cakecrumbs-propertize-string
-             parents
-             (propertize cakecrumbs-separator 'face 'cakecrumbs-separator)))
-
-(defun cakecrumbs-generate-header-string ()
-  ""
-  (let ((parents (cakecrumbs-get-parents)))
-    (if (null parents)
-        (propertize "(cakecrumbs idle)" 'face 'cakecrumbs-ellipsis)
-      (let* ((fin (cakecrumbs-format-parents parents))
-             (ellipsis-str (or cakecrumbs-ellipsis "[...]"))
-             (ellipsis-len (length ellipsis-str))
-             (need-ellipsis nil))
-        (while (> (+ (length fin) (if need-ellipsis ellipsis-len 0))
-                  (window-body-width))
-          (setq need-ellipsis t)
-          (pop parents)
-          (setq fin (cakecrumbs-format-parents parents)))
-        (if need-ellipsis
-            (concat (propertize ellipsis-str 'face 'cakecrumbs-ellipsis) fin)
-          fin)))))
-
-(defun cakecrumbs-show-in-minibuffer ()
-  "Display full parents list in minibuffer"
-  (interactive)
-  (let ((parents (cakecrumbs-get-parents)))
-    (if (null parents)
-        (message (propertize "[Cakecrumbs] Not in a supported area!" 'face 'cakecrumbs-ellipsis))
-      (message (cakecrumbs-format-parents parents)))))
-
-(defun cakecrumbs-get-parents (&optional point)
-  "return string list, containing parents."
-  (cond ((memq major-mode cakecrumbs-html-major-modes)
-         (cakecrumbs-html-get-parents point))
-        ((memq major-mode cakecrumbs-jade-major-modes)
-         (cakecrumbs-jade-get-parents point))
-        ((memq major-mode cakecrumbs-scss-major-modes)
-         (cakecrumbs-scss-get-parents point))
-        ((memq major-mode cakecrumbs-stylus-major-modes)
-         (cakecrumbs-stylus-get-parents point))))
-
-(defun cakecrumbs-get-parent ()
-  "return a list: (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF)"
-  (cond ((memq major-mode cakecrumbs-html-major-modes)
-         (cakecrumbs-html-get-parent point))
-        ((memq major-mode cakecrumbs-jade-major-modes)
-         (cakecrumbs-jade-get-parent point))
-        ((memq major-mode cakecrumbs-scss-major-modes)
-         (cakecrumbs-scss-get-parent point))
-        ((memq major-mode cakecrumbs-stylus-major-modes)
-         (cakecrumbs-stylus-get-parent point))))
-
-;; ======================================================
 ;; HTML
 ;; ======================================================
 
@@ -570,6 +484,100 @@ Currently IN-TAG-ITSELF is always nil."
 
 ;; (defun ss () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-stylus-get-parent))))
 ;; (defun sss () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-stylus-get-parents))))
+
+;; ======================================================
+;; Main
+;; ======================================================
+
+(defun cakecrumbs-propertize-string (level-str)
+  "Input is single-level string"
+  (mapc (lambda (patt)
+          (setq level-str (replace-regexp-in-string patt "" level-str)))
+        cakecrumbs-ignored-patterns)
+  (if (equal "" level-str) (setq level-str "div"))
+  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-tag level-str)))) ; tag
+    (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-tag) level-str)))
+  (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-id level-str)))) ; id
+    (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-id) level-str)))
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-class level-str))) ; class
+    (if m (mapc (lambda (pair)
+                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-class) level-str))
+                m)))
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-attr level-str))) ; attr
+    (if m (mapc (lambda (pair)
+                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-attr) level-str))
+                m)))
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo level-str))) ; pseudo
+    (if m (mapc (lambda (pair)
+                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-pseudo) level-str))
+                m)))
+  (let ((m (cakecrumbs-matched-positions-all cakecrumbs-re-preprocessor level-str))) ; preprocessor
+    (if m (mapc (lambda (pair)
+                  (set-text-properties (car pair) (cdr pair) '(face cakecrumbs-preprocessor) level-str))
+                m)))
+  level-str)
+
+(defun cakecrumbs-format-parents (parents)
+  "PARENTS is a (no-propertized) string list"
+  (mapconcat #'cakecrumbs-propertize-string
+             parents
+             (propertize cakecrumbs-separator 'face 'cakecrumbs-separator)))
+
+(defun cakecrumbs-generate-header-string ()
+  ""
+  (let ((parents (cakecrumbs-get-parents)))
+    (if (null parents)
+        (propertize "(cakecrumbs idle)" 'face 'cakecrumbs-ellipsis)
+      (let* ((fin (cakecrumbs-format-parents parents))
+             (ellipsis-str (or cakecrumbs-ellipsis "[...]"))
+             (ellipsis-len (length ellipsis-str))
+             (need-ellipsis nil))
+        (while (> (+ (length fin) (if need-ellipsis ellipsis-len 0))
+                  (window-body-width))
+          (setq need-ellipsis t)
+          (pop parents)
+          (setq fin (cakecrumbs-format-parents parents)))
+        (if need-ellipsis
+            (concat (propertize ellipsis-str 'face 'cakecrumbs-ellipsis) fin)
+          fin)))))
+
+(defun cakecrumbs-get-parents (&optional point)
+  "return string list, containing parents."
+  (cond ((memq major-mode cakecrumbs-html-major-modes)
+         (cakecrumbs-html-get-parents point))
+        ((memq major-mode cakecrumbs-jade-major-modes)
+         (cakecrumbs-jade-get-parents point))
+        ((memq major-mode cakecrumbs-scss-major-modes)
+         (cakecrumbs-scss-get-parents point))
+        ((memq major-mode cakecrumbs-stylus-major-modes)
+         (cakecrumbs-stylus-get-parents point))))
+
+(defun cakecrumbs-get-parent (&optional point)
+  "return a list: (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF)"
+  (cond ((memq major-mode cakecrumbs-html-major-modes)
+         (cakecrumbs-html-get-parent point))
+        ((memq major-mode cakecrumbs-jade-major-modes)
+         (cakecrumbs-jade-get-parent point))
+        ((memq major-mode cakecrumbs-scss-major-modes)
+         (cakecrumbs-scss-get-parent point))
+        ((memq major-mode cakecrumbs-stylus-major-modes)
+         (cakecrumbs-stylus-get-parent point))))
+
+(defun cakecrumbs-show-in-minibuffer ()
+  "Display full parents list in minibuffer"
+  (interactive)
+  (let ((parents (cakecrumbs-get-parents)))
+    (if (null parents)
+        (message (propertize "[Cakecrumbs] Not in a supported area!" 'face 'cakecrumbs-ellipsis))
+      (message (cakecrumbs-format-parents parents)))))
+
+(defun cakecrumbs-goto-parent ()
+  "Jump to the position of parent"
+  (interactive)
+  (let ((parent-obj (cakecrumbs-get-parent)))
+    (if parent-obj
+        (goto-char (nth 1 parent-obj))
+      (message "[Cakecrumbs] Not found parent!"))))
 
 ;; ======================================================
 ;; Idle Timer
