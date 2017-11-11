@@ -449,128 +449,18 @@ bool IN-TAG-ITSELF "
 (defun cakecrumbs-eol-pos ()
   (save-excursion (end-of-line) (point)))
 
-(defun cakecrumbs-jade-search-nearest-nested-tag-in-current-line (&optional pos)
-  "Search for the nearest 'nested-tag' from POS (or `point' when POS is nil) within current line.
-
-return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
-
-If current line is comment, return nil.
-
-This functions should only be called by `cakecrumbs-jade-get-parent', 2 scenarios:
-  1. current-column == current-indentation
-      => find all
-  2. current-column > current-indentation
-      => back-to-indentation
-      => goto-....
-      => >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> I decide to give up the support for nested-tag
-
-
-<ex> the `span' and `i' is nested-tag, `a' is plain-tag
-
-    a(href='/:8080'): span(): i hello
-"
-  ;; Jade/Pug's syntax requires analyze line from left (BOL) to right. e.g.:
-  ;;
-  ;;   a(href='/'): div: span(ng-class='hello'): i twitter: This is my twitter!
-  ;;
-  ;; 'This' is not a tag, because 'i' break the nest chain.
-  ;;
-  ;; Notice this is also a valid pug-syntax:
-  ;;
-  ;; a(ng-class="aClass"
-  ;;   ng-click="apply()"): b(ng-repeat="x in xxx"
-  ;;                          ng-model="b"): c hello
-  ;;
-  ;; == states ==
-  ;;                                          , -(founded start pos > cursor)-> `nest-ended' (return last-1 founded)
-  ;; `init' -> `plain-began' --> `nest-began' --> `nest-ended' (return last founded)
-  ;;       `-> (eol)         `-> `no-nest' (return nil)
+(defun cakecrumbs-get-indentation-at-pos (pos)
   (save-excursion
-    (if pos (goto-char pos))
-    (if (not (cakecrumbs-jade-line-starts-with-tag))
-        nil
-      (let* ((init-pos pos)
-             (init-in-paren (cakecrumbs-in-paren-p))
-             (state 'plain-began)
-             (last-selector nil)  ; string
-             (last-pos nil) ; colon pos
-             (fin-selector nil)  ; string
-             (fin-pos nil)  ; colon pos (or tag pos is better?)
-             (break nil)
-             )
-        (if init-in-paren
-            (goto-))
-        (back-to-indentation)
-        (while (not (or break
-                        (eq state 'nest-ended)
-                        (eq state 'no-nest)
-                        ))
-          (let ((ch (thing-at-point 'char t)))
-            (cond ((eq state 'plain-began)
-                   (let ((m (cakecrumbs-jade--try-jump-over-plain-tag-to-its-end)))
-                     (setq found)
-                     (if (null m) (setq break t))
-                     )
-
-                   ))
-            (right-char)
-            )
-          (if (or found-pos)
-              (list found-selector found-pos init-in-paren)))))))
-
-;; (defun ch () (interactive) (message (thing-at-point 'char t)))
-
-(defun cakecrumbs-jade--try-jump-over-tag-to-its-end ()
-  "Search forward from `point',
-If found a possible tag, jump to end of it and return
-selector string; else, return nil without jump.
-
-This function only jump and return selector, won't validate if it
-a real tag / plain-tag / nested-tag.
-
-To jump-over nested-tag, use
-`cakecrumbs-jade--try-jump-over-nested-tag-to-its-end'
-
- [WARNING] This function is designed for
-`cakecrumbs-jade-search-nearest-nested-tag-in-current-line' and
-should be used by it only."
-  (interactive)
-  (let* ((selector-patt "^[A-z#._][-A-z0-9#._]*$")
-         (begin (point))
-         (e (save-excursion (re-search-forward "\\(?:[(=: ]\\|$\\)" (cakecrumbs-eol-pos) t)))  ; because $, alwawys non-nil
-         (end (if (eq e (cakecrumbs-eol-pos))
-                  e
-                (1- e))))
-    (let* ((selector (buffer-substring-no-properties begin end))
-           (valid (string-match-p selector-patt selector)))
-      (if (not valid)
-          nil ; return
-        (progn (goto-char end)
-               (if (equal "(" (thing-at-point 'char t))
-                   (forward-sexp))  ; <- remember: attribute list can contain newlines
-               selector)))))
-
-(defun cakecrumbs-jade--try-jump-over-nested-tag-to-its-end ()
-  "Search forward from `point',
-If found a possible nested-tag, jump to end of it and return
-selector string; else, return nil without jump. That is to say:
-
- (buffer-substring (point) (+ 2 (point))) must equal to \": \"
-otherwise, always return nil without jump.
-
-WARNING: This function is designed for
-`cakecrumbs-jade-search-nearest-nested-tag-in-current-line' and
-should be used by it only."
-  (interactive)
-  (if (equal ": " (buffer-substring-no-properties (point) (+ 2 (point))))
-      (progn (right-char 2)
-             (cakecrumbs-jade--try-jump-over-tag-to-its-end))))
+    (goto-char pos)
+    (current-indentation)))
 
 (defun cakecrumbs-jade-search-nearest-plain-tag (&optional pos)
   "Search for the nearest plain-tag from POS (or `point' when POS is nil).
 return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 
-Always search backwardly, and comment tag never involved."
+Always search backwardly.
+
+All comment-tags and nested-tags are ignored."
   (save-excursion
     (if pos (goto-char pos))
     (let* ((init-in-parenthesis (cakecrumbs-in-paren-p))
@@ -579,7 +469,7 @@ Always search backwardly, and comment tag never involved."
                          (end-of-line))
                      (re-search-backward PATTERN nil :no-error))))
       (while (cond ((null m) nil) ; break (not found)
-                   ((> (car (syntax-ppss)) 0) t) ; continue (cursor in parenthesis)
+                   ((cakecrumbs-in-paren-p) t) ; continue
                    (t nil)  ; break (found)
                    )
         (setq m (re-search-backward PATTERN nil :no-error)))
@@ -598,11 +488,25 @@ Find backward lines up to parent"
     (if point (goto-char point))
     (let* ((init-in-parenthesis (nth 9 (syntax-ppss)))
            (init-indentation (if (cakecrumbs-invisible-line-p)  ; parent's indentation must less than this
-                                 (prog1 (current-column) (forward-line -1))
-                               (progn (current-indentation))))
+                                 (current-column)
+                               (current-indentation)))
+           (possible-parent nil)
            (found-parent nil)
-           (possible-parent nil))
-      (while (and found-parent (not (eobp))))
+           (continue t))
+      (while continue
+        (setq possible-parent (cakecrumbs-jade-search-nearest-plain-tag))
+        (when possible-parent
+          (if init-in-parenthesis
+              (setq found-parent possible-parent)
+            (let* ((tag-pos (nth 1 possible-parent))
+                   (tag-indentation (cakecrumbs-get-indentation-at-pos tag-pos)))
+              (if (< tag-indentation init-indentation)
+                  (setq found-parent possible-parent)
+                (goto-char tag-pos)))))
+        (if (or found-parent
+                (null possible-parent))
+            (setq continue nil)))
+      found-parent
       )))
 
 (defun cakecrumbs-jade-get-parents (&optional point)
@@ -620,17 +524,9 @@ Find backward lines up to parent"
 
 (defun ppss () (interactive) (message "%s" (syntax-ppss)))
 
-(defun j ()
-  (interactive)
-  (message (format "(%s),  %s" (point) (cakecrumbs-jade-search-nearest-nested-tag-in-current-line))))
-
-(defun jj ()
-  (interactive)
-  (message (format "(%s),  %s" (point) (cakecrumbs-jade-search-nearest-plain-tag))))
-
-(defun jjj ()
-  (interactive)
-  (message"%s" (cakecrumbs-jade-get-parents)))
+(defun j () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-jade-search-nearest-plain-tag))))
+(defun jj () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-jade-get-parent))))
+(defun jjj () (interactive) (message"%s" (cakecrumbs-jade-get-parents)))
 
 (defun ggg ()
   (interactive)
