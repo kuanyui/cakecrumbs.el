@@ -94,8 +94,6 @@ SUBEXP-DEPTH is 0 by default."
           (setq pos (match-end 0))))
       (nreverse result))))
 
-(setq ex "span.col-md-3.col-xs-6#test-hello")
-(setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
 
 (setq cakecrumbs-re-tag "^[^ .#:&@()]+")
 (setq cakecrumbs-re-class "[.][-A-z0-9_]+")
@@ -107,11 +105,13 @@ SUBEXP-DEPTH is 0 by default."
 ;; (setq cakecrumbs-ignored-patterns '("\\.col-[a-z0-9-]+"))  ; [FIXME] When parent only has .col-*
 (setq cakecrumbs-ignored-patterns '())
 
-(cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
-(cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
-(cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
-(cakecrumbs-matched-positions-all cakecrumbs-re-attr cs 0)
-(cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
+;; (setq ex "span.col-md-3.col-xs-6#test-hello")
+;; (setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-attr cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
 
 (defun cakecrumbs-propertize-string (level-str)
   "Input is single-level string"
@@ -164,16 +164,12 @@ SUBEXP-DEPTH is 0 by default."
             (concat (propertize ellipsis-str 'face 'cakecrumbs-ellipsis) fin)
           fin)))))
 
-
-
-(defun cakecrumbs-show-full ()
+(defun cakecrumbs-show-full-list ()
   (interactive)
   (let ((parents (cakecrumbs-get-parents)))
     (if (null parents)
         (message (propertize "[Cakecrumbs] Not in a supported area!" 'face 'cakecrumbs-ellipsis))
       (message (cakecrumbs-format-parents parents)))))
-
-(defun zzz () (interactive) (message (cakecrumbs-generate-header-string)))
 
 (defun cakecrumbs-install-header ()
   (setq cakecrumbs--original-head-line-format header-line-format)
@@ -188,25 +184,6 @@ SUBEXP-DEPTH is 0 by default."
 ;; ======================================================
 ;; header-line
 ;; ======================================================
-
-;; ( "" (:propertize which-func-current local-map
-;;                   (keymap (mode-line keymap (mouse-3 . end-of-defun)
-;;                                      (mouse-2 . #[nil "" [1 narrow-to-defun] 2 nil nil])
-;;                                      (mouse-1 . beginning-of-defun)
-;;                                      ))
-;;                   face which-func mouse-face mode-line-highlight help-echo
-;;                   "mouse-1: go to beginning
-;; mouse-2: toggle rest visibility
-;; mouse-3: go to end") "")
-
-;; (add-hook 'prog-mode-hook 'which-func-setup-header t t)
-;; (add-hook 'html-mode-hook 'which-func-setup-header t t)
-
-
-;; (format "point == %s , %s" (point) (parse-partial-sexp (point-min) (point-max) nil nil (syntax-ppss)))
-(save-excursion (syntax-after (point))
-                (skip-syntax-forward "^()" 3)
-                (syntax-ppss))
 
 (defun cakecrumbs-string-match (regexp num string)
   (save-match-data
@@ -384,9 +361,9 @@ bool IN-TAG-ITSELF "
     fin))
 
 
-(defun h () (interactive) (message "%s, %s" (point) (cakecrumbs-html-search-nearest-tag)))
-(defun hh () (interactive) (message "%s" (cakecrumbs-html-get-parent)))
-(defun hhh () (interactive) (message "%s" (cakecrumbs-html-get-parents)))
+;; (defun h () (interactive) (message "%s, %s" (point) (cakecrumbs-html-search-nearest-tag)))
+;; (defun hh () (interactive) (message "%s" (cakecrumbs-html-get-parent)))
+;; (defun hhh () (interactive) (message "%s" (cakecrumbs-html-get-parents)))
 
 ;; ======================================================
 ;; Jade / Pug
@@ -495,10 +472,10 @@ Find backward lines up to parent"
                  nil))) ; break WHILE
       fin)))
 
-(defun ppss () (interactive) (message "%s" (syntax-ppss)))
-(defun j () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-jade-search-nearest-plain-tag))))
-(defun jj () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-jade-get-parent))))
-(defun jjj () (interactive) (message"%s" (cakecrumbs-jade-get-parents)))
+;; (defun ppss () (interactive) (message "%s" (syntax-ppss)))
+;; (defun j () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-jade-search-nearest-plain-tag))))
+;; (defun jj () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-jade-get-parent))))
+;; (defun jjj () (interactive) (message"%s" (cakecrumbs-jade-get-parents)))
 
 ;; ======================================================
 ;; SCSS / LESS
@@ -586,11 +563,8 @@ Currently IN-TAG-ITSELF is always nil."
           (setq continue nil)))
       fin)))
 
-
-
-
-(defun ss () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-stylus-get-parent))))
-(defun sss () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-stylus-get-parents))))
+;; (defun ss () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-stylus-get-parent))))
+;; (defun sss () (interactive) (message (format "%s\n%s" (point) (cakecrumbs-stylus-get-parents))))
 
 ;; ======================================================
 ;; Idle Timer
