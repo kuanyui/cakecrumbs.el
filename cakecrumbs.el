@@ -592,10 +592,12 @@ Currently IN-TAG-ITSELF is always nil."
 (defun cakecrumbs-install-header ()
   (if (timerp cakecrumbs--idle-timer)
       (cancel-timer cakecrumbs--idle-timer))
-  (setq cakecrumbs--idle-timer
-        (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
   (setq cakecrumbs--original-head-line-format header-line-format)
-  (setq header-line-format '((:eval cakecrumbs--formatted-header))))
+  (if cakecrumbs-refresh-delay-seconds
+      (progn (setq cakecrumbs--idle-timer
+                   (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
+             (setq header-line-format '((:eval cakecrumbs--formatted-header))))
+    (progn (setq header-line-format '((:eval (cakecrumbs-generate-header-string)))))))
 
 (defun cakecrumbs-uninstall-header ()
   (if (timerp cakecrumbs--idle-timer)
@@ -620,11 +622,12 @@ Currently IN-TAG-ITSELF is always nil."
       (cakecrumbs-install-header)
     (cakecrumbs-uninstall-header)))
 
+(defalias 'cakecrumbs 'cakecrumbs-mode)
+
 ;; ======================================================
 ;; Setup
 ;; ======================================================
 
-(defalias 'cakecrumbs 'cakecrumbs-mode)
 
 (defun cakecrumbs-auto-setup ()
   "Use in your Emacs config file. Auto add-hook to all modes
@@ -644,8 +647,6 @@ defined in:
                 cakecrumbs-jade-major-modes
                 cakecrumbs-scss-major-modes
                 cakecrumbs-stylus-major-modes)))
-
-(cakecrumbs-auto-setup)
 
 (provide 'cakecrumbs)
 ;;; cakecrumbs.el ends here
