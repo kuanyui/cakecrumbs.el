@@ -421,7 +421,8 @@ bool IN-TAG-ITSELF "
 ;; ======================================================
 
 (defun cakecrumbs-in-paren-p ()
-  (> (car (syntax-ppss)) 0))
+  "return nearest paren's beginning pos"
+  (car (nth 9 (syntax-ppss))))
 
 (defun cakecrumbs-invisible-line-p ()
   (string-match-p "^[ \t]*$" (cakecrumbs-current-line-string)))
@@ -451,11 +452,18 @@ bool IN-TAG-ITSELF "
 (defun cakecrumbs-jade-search-nearest-nested-tag-in-current-line (&optional pos)
   "Search for the nearest 'nested-tag' from POS (or `point' when POS is nil) within current line.
 
-plain-tag is totally ignored by this function. See `cakecrumbs-jade-search-nearest-plain-tag'
-
 return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 
 If current line is comment, return nil.
+
+This functions should only be called by `cakecrumbs-jade-get-parent', 2 scenarios:
+  1. current-column == current-indentation
+      => find all
+  2. current-column > current-indentation
+      => back-to-indentation
+      => goto-....
+      => >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> I decide to give up the support for nested-tag
+
 
 <ex> the `span' and `i' is nested-tag, `a' is plain-tag
 
@@ -467,6 +475,12 @@ If current line is comment, return nil.
   ;;
   ;; 'This' is not a tag, because 'i' break the nest chain.
   ;;
+  ;; Notice this is also a valid pug-syntax:
+  ;;
+  ;; a(ng-class="aClass"
+  ;;   ng-click="apply()"): b(ng-repeat="x in xxx"
+  ;;                          ng-model="b"): c hello
+  ;;
   ;; == states ==
   ;;                                          , -(founded start pos > cursor)-> `nest-ended' (return last-1 founded)
   ;; `init' -> `plain-began' --> `nest-began' --> `nest-ended' (return last founded)
@@ -476,18 +490,21 @@ If current line is comment, return nil.
     (if (not (cakecrumbs-jade-line-starts-with-tag))
         nil
       (let* ((init-pos pos)
-             (eol-pos (cakecrumbs-eol-pos))
              (init-in-paren (cakecrumbs-in-paren-p))
              (state 'plain-began)
-             (found-selector nil)  ; string
-             (found-pos nil)  ; colon pos (or tag pos is better?)
+             (last-selector nil)  ; string
+             (last-pos nil) ; colon pos
+             (fin-selector nil)  ; string
+             (fin-pos nil)  ; colon pos (or tag pos is better?)
              (break nil)
              )
+        (if init-in-paren
+            (goto-))
         (back-to-indentation)
         (while (not (or break
                         (eq state 'nest-ended)
                         (eq state 'no-nest)
-                        (>= (point) eol-pos)))
+                        ))
           (let ((ch (thing-at-point 'char t)))
             (cond ((eq state 'plain-began)
                    (let ((m (cakecrumbs-jade--try-jump-over-plain-tag-to-its-end)))
@@ -530,7 +547,7 @@ should be used by it only."
           nil ; return
         (progn (goto-char end)
                (if (equal "(" (thing-at-point 'char t))
-                   (forward-sexp))
+                   (forward-sexp))  ; <- remember: attribute list can contain newlines
                selector)))))
 
 (defun cakecrumbs-jade--try-jump-over-nested-tag-to-its-end ()
