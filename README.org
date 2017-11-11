@@ -42,5 +42,17 @@ MELPA is not ready yet. Please wait.
                                       ))
 #+END_SRC
 
+** Known Issues
+- Life is so painful.
+- I'm too lazy to implement the supporting for nested-tag of Jade/Pug.
+#+BEGIN_QUOTE
+  Because this is still a valid nested-tag:
+  #+BEGIN_SRC jade
+   a(ng-class="aClass"
+     ng-click="apply()"): b(ng-repeat="x in xxx"
+                            ng-model="b"): c hello
+  #+END_SRC
+#+END_QUOTE
+
 ** License
 GPLv3
