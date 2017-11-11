@@ -28,8 +28,8 @@
 ;; Buffer Local Variables
 ;; ======================================================
 
-(defvar-local cakecrumbs--parents-list '())
-(defvar-local cakecrumbs--refresh-timer nil
+(defvar-local cakecrumbs--formatted-header nil)
+(defvar-local cakecrumbs--idle-timer nil
   "Buffer-local timer.")
 (defvar-local cakecrumbs--original-head-line-format nil
   "The value of `header-line-format' before calling `cakecrumbs-install-header'")
@@ -37,6 +37,10 @@
 ;; ======================================================
 ;; Variables For Customization
 ;; ======================================================
+
+(defvar cakecrumbs-refresh-delay-seconds 0.1
+  "Set to number to refresh after idling N seconds.
+Set to nil, refresh without any delay.")
 
 (defvar cakecrumbs-separator " | ")
 (defvar cakecrumbs-ellipsis "[...] ")
@@ -217,13 +221,6 @@ This is useless in `web-mode'."
     (if (null parents)
         (message (propertize "[Cakecrumbs] Not in a supported area!" 'face 'cakecrumbs-ellipsis))
       (message (cakecrumbs-format-parents parents)))))
-
-(defun cakecrumbs-install-header ()
-  (setq cakecrumbs--original-head-line-format header-line-format)
-  (setq header-line-format '((:eval (cakecrumbs-generate-header-string)))))
-
-(defun cakecrumbs-uninstall-header ()
-  (setq header-line-format cakecrumbs--original-head-line-format))
 
 (defun cakecrumbs-get-parents (&optional point)
   "return string list, containing parents."
@@ -577,23 +574,28 @@ Currently IN-TAG-ITSELF is always nil."
 ;; ======================================================
 ;; Idle Timer
 ;; ======================================================
+;;
+(defun cakecrumbs-timer-handler (buffer)
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (setq cakecrumbs--formatted-header (cakecrumbs-generate-header-string))
+      (force-mode-line-update))))
 
-;; (defun cakecrumbs-timer-handler (buffer)
-;;   (when (buffer-live-p buffer)
-;;     (with-current-buffer buffer
-;;       (cakecrumbs-refresh)
-;;       )))
-;;
-;; (add-hook 'cakecrumbs-mode-hook
-;;           (lambda ()
-;;             (setq cakecrumbs--refresh-timer
-;;                   (run-with-idle-timer 0.8 t 'cakecrumbs-timer-handler (current-buffer)))))
-;;
-;; (add-hook 'kill-buffer-hook
-;;           (lambda ()
-;;             (when (timerp cakecrumbs--refresh-timer)
-;;               (cancel-timer cakecrumbs--refresh-timer))))
-;;
+(defun cakecrumbs-install-header ()
+  (if (timerp cakecrumbs--idle-timer)
+      (cancel-timer cakecrumbs--idle-timer))
+  (setq cakecrumbs--idle-timer
+        (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
+  (setq cakecrumbs--original-head-line-format header-line-format)
+  (setq header-line-format '((:eval cakecrumbs--formatted-header))))
+
+(defun cakecrumbs-uninstall-header ()
+  (if (timerp cakecrumbs--idle-timer)
+      (cancel-timer cakecrumbs--idle-timer))
+  (if cakecrumbs--original-head-line-format
+      (setq header-line-format cakecrumbs--original-head-line-format)))
+
+(add-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header)
 
 ;; ======================================================
 ;; Minor Mode
