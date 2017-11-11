@@ -96,14 +96,6 @@
 ;; (setq cakecrumbs-ignored-patterns '("[.]col-[a-z0-9-]+"))  ; [FIXME] When parent only has .col-*
 (setq cakecrumbs-ignored-patterns '())
 
-;; (setq ex "span.col-md-3.col-xs-6#test-hello")
-;; (setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-attr cs 0)
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
-
 ;; ======================================================
 ;; Utils function
 ;; ======================================================
@@ -121,6 +113,13 @@ SUBEXP-DEPTH is 0 by default."
           (push (cons (match-beginning subexp-depth) (match-end subexp-depth)) result)
           (setq pos (match-end 0))))
       (nreverse result))))
+;; (setq ex "span.col-md-3.col-xs-6#test-hello")
+;; (setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-attr cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
 
 ;; Syntax
 (defun cakecrumbs-in-paren-p (&optional pos)
@@ -131,7 +130,7 @@ This is useless in `web-mode'."
 (defun cakecrumbs-in-comment-p (&optional pos)
   (nth 4 (syntax-ppss pos)))
 
-(defun cakecrumbs-cursor-within-string (&optional pos)
+(defun cakecrumbs-in-string-p (&optional pos)
   (nth 3 (syntax-ppss pos)))
 
 (defun cakecrumbs-invisible-line-p ()
@@ -262,7 +261,7 @@ string && not in comment) from POS. If not found, return nil
                    (cond ((null fin) nil)
                          ((eq (point-min) (point)) nil) ; break
                          ((not (memq major-mode cakecrumbs-html-major-modes)) nil)  ; break. Is this condition possible in mmm-mode?
-                         ((cakecrumbs-cursor-within-string) t) ; continue
+                         ((cakecrumbs-in-string-p) t) ; continue
                          ((equal (buffer-substring-no-properties (point) (+ 4 (point))) "<!--") t) ; continue
                          (t nil))) ; found
             (setq fin nil))
@@ -280,7 +279,7 @@ string && not in comment) from POS. If not found, return nil"
                    (cond ((null fin) nil)
                          ((eq (point-max) (point)) nil) ; break
                          ((not (memq major-mode cakecrumbs-html-major-modes)) nil)  ; break. Is this condition possible in mmm-mode?
-                         ((cakecrumbs-cursor-within-string) t) ; continue
+                         ((cakecrumbs-in-string-p) t) ; continue
                          ((equal (buffer-substring-no-properties (- (point) 3) (point)) "-->") t) ; continue
                          (t nil))) ; found
             (setq fin nil))
