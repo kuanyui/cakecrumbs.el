@@ -1,9 +1,9 @@
 ;;; cakecrumbs.el ---                               -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017  onohiroko
+;; Copyright (C) 2017 ono hiroko
 
-;; Author: onohiroko <onohiroko@kuanyenMBP>
-;; Keywords:
+;; Author: ono hiroko <kuanyui.github.io>
+;; Keywords: languages
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -35,16 +35,20 @@
   "The value of `header-line-format' before calling `cakecrumbs-install-header'")
 
 ;; ======================================================
-;; Variables
+;; Variables For Customization
 ;; ======================================================
 
 (defvar cakecrumbs-separator " | ")
-(setq cakecrumbs-ellipsis "[...] ")
+(defvar cakecrumbs-ellipsis "[...] ")
 
-(setq cakecrumbs-html-major-modes   '(html-mode web-mode nxml-mode sgml-mode))
-(setq cakecrumbs-jade-major-modes   '(yajade-mode jade-mode pug-mode))
-(setq cakecrumbs-scss-major-modes   '(scss-mode less-css-mode css-mode))
-(setq cakecrumbs-stylus-major-modes '(stylus-mode sass-mode))
+(defvar cakecrumbs-html-major-modes   '(html-mode web-mode nxml-mode sgml-mode))
+(defvar cakecrumbs-jade-major-modes   '(yajade-mode jade-mode pug-mode))
+(defvar cakecrumbs-scss-major-modes   '(scss-mode less-css-mode css-mode))
+(defvar cakecrumbs-stylus-major-modes '(stylus-mode sass-mode))
+
+(defvar cakecrumbs-ignored-patterns '(
+                                      "[.]col-[a-z][a-z]-[0-9]+"  ; Bootstrap's .col-*
+                                      ))
 
 (defface cakecrumbs-ellipsis
   '((((class color) (background light)) (:inherit font-lock-comment-face))
@@ -86,18 +90,19 @@
     (((class color) (background dark)) (:inherit font-lock-preprocessor-face)))
   "SCSS/LESS/Stylus @.+ or CSS @media" :group 'cakecrumbs-faces)
 
-(setq cakecrumbs-re-tag "^[^ .#:&@()]+")
-(setq cakecrumbs-re-class "[.][-A-z0-9_]+")
-(setq cakecrumbs-re-id "#[-A-z0-9_]+")
-(setq cakecrumbs-re-attr "\\[[-A-z0-9_]+.*\\]")
-(setq cakecrumbs-re-pseudo "::?[-A-z0-9_]+")
-(setq cakecrumbs-re-preprocessor "@[-A-z0-9_]+")
+;; ======================================================
+;; Variables
+;; ======================================================
 
-;; (setq cakecrumbs-ignored-patterns '("[.]col-[a-z0-9-]+"))  ; [FIXME] When parent only has .col-*
-(setq cakecrumbs-ignored-patterns '())
+(defvar cakecrumbs-re-tag "^[^ .#:&@()]+")
+(defvar cakecrumbs-re-class "[.][-A-z0-9_]+")
+(defvar cakecrumbs-re-id "#[-A-z0-9_]+")
+(defvar cakecrumbs-re-attr "\\[[-A-z0-9_]+.*\\]")
+(defvar cakecrumbs-re-pseudo "::?[-A-z0-9_]+")
+(defvar cakecrumbs-re-preprocessor "@[-A-z0-9_]+")
 
 ;; ======================================================
-;; Utils function
+;; Utils Function
 ;; ======================================================
 
 (defun cakecrumbs-matched-positions-all (regexp string &optional subexp-depth)
@@ -113,6 +118,7 @@ SUBEXP-DEPTH is 0 by default."
           (push (cons (match-beginning subexp-depth) (match-end subexp-depth)) result)
           (setq pos (match-end 0))))
       (nreverse result))))
+
 ;; (setq ex "span.col-md-3.col-xs-6#test-hello")
 ;; (setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
 ;; (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
@@ -157,6 +163,7 @@ This is useless in `web-mode'."
   (mapc (lambda (patt)
           (setq level-str (replace-regexp-in-string patt "" level-str)))
         cakecrumbs-ignored-patterns)
+  (if (equal "" level-str) (setq level-str "div"))
   (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-tag level-str)))) ; tag
     (if m (set-text-properties (car m) (cdr m) '(face cakecrumbs-tag) level-str)))
   (let ((m (car (cakecrumbs-matched-positions-all cakecrumbs-re-id level-str)))) ; id
