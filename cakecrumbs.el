@@ -608,6 +608,8 @@ Currently IN-TAG-ITSELF is always nil."
 ;; ======================================================
 ;; Minor Mode
 ;; ======================================================
+
+
 (define-minor-mode cakecrumbs-mode
   "doc"
   :init-value nil
@@ -618,7 +620,32 @@ Currently IN-TAG-ITSELF is always nil."
       (cakecrumbs-install-header)
     (cakecrumbs-uninstall-header)))
 
+;; ======================================================
+;; Setup
+;; ======================================================
+
 (defalias 'cakecrumbs 'cakecrumbs-mode)
+
+(defun cakecrumbs-auto-setup ()
+  "Use in your Emacs config file. Auto add-hook to all modes
+defined in:
+- `cakecrumbs-html-major-modes'
+- `cakecrumbs-jade-major-modes'
+- `cakecrumbs-scss-major-modes'
+- `cakecrumbs-stylus-major-modes'
+"
+  (mapc (lambda (mode-symbol)
+          (let* ((mode-name (symbol-name mode-symbol))
+                 (hook-symbol (intern (concat mode-name "-hook"))))
+            (eval-after-load mode-symbol
+              `(add-hook (quote ,hook-symbol) 'cakecrumbs-mode)
+              )))
+        (append cakecrumbs-html-major-modes
+                cakecrumbs-jade-major-modes
+                cakecrumbs-scss-major-modes
+                cakecrumbs-stylus-major-modes)))
+
+(cakecrumbs-auto-setup)
 
 (provide 'cakecrumbs)
 ;;; cakecrumbs.el ends here
