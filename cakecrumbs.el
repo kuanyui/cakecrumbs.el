@@ -24,20 +24,27 @@
 
 ;;; Code:
 
+;; ======================================================
+;; Buffer Local Variables
+;; ======================================================
+
 (defvar-local cakecrumbs--parents-list '())
 (defvar-local cakecrumbs--refresh-timer nil
   "Buffer-local timer.")
 (defvar-local cakecrumbs--original-head-line-format nil
   "The value of `header-line-format' before calling `cakecrumbs-install-header'")
 
+;; ======================================================
+;; Variables
+;; ======================================================
+
 (defvar cakecrumbs-separator " | ")
 (setq cakecrumbs-ellipsis "[...] ")
 
-(setq cakecrumbs-jade-major-modes   '(yajade-mode jade-mode pug-mode))
 (setq cakecrumbs-html-major-modes   '(html-mode web-mode nxml-mode sgml-mode))
+(setq cakecrumbs-jade-major-modes   '(yajade-mode jade-mode pug-mode))
 (setq cakecrumbs-scss-major-modes   '(scss-mode less-css-mode css-mode))
 (setq cakecrumbs-stylus-major-modes '(stylus-mode sass-mode))
-
 
 (defface cakecrumbs-ellipsis
   '((((class color) (background light)) (:inherit font-lock-comment-face))
@@ -79,6 +86,27 @@
     (((class color) (background dark)) (:inherit font-lock-preprocessor-face)))
   "SCSS/LESS/Stylus @.+ or CSS @media" :group 'cakecrumbs-faces)
 
+(setq cakecrumbs-re-tag "^[^ .#:&@()]+")
+(setq cakecrumbs-re-class "[.][-A-z0-9_]+")
+(setq cakecrumbs-re-id "#[-A-z0-9_]+")
+(setq cakecrumbs-re-attr "\\[[-A-z0-9_]+.*\\]")
+(setq cakecrumbs-re-pseudo "::?[-A-z0-9_]+")
+(setq cakecrumbs-re-preprocessor "@[-A-z0-9_]+")
+
+;; (setq cakecrumbs-ignored-patterns '("[.]col-[a-z0-9-]+"))  ; [FIXME] When parent only has .col-*
+(setq cakecrumbs-ignored-patterns '())
+
+;; (setq ex "span.col-md-3.col-xs-6#test-hello")
+;; (setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-attr cs 0)
+;; (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
+
+;; ======================================================
+;; Utils function
+;; ======================================================
 
 (defun cakecrumbs-matched-positions-all (regexp string &optional subexp-depth)
   "Return a list of matched positions for REGEXP in STRING.
@@ -94,24 +122,36 @@ SUBEXP-DEPTH is 0 by default."
           (setq pos (match-end 0))))
       (nreverse result))))
 
+;; Syntax
+(defun cakecrumbs-in-paren-p (&optional pos)
+  "return nearest paren's beginning pos.
+This is useless in `web-mode'."
+  (car (nth 9 (syntax-ppss pos))))
 
-(setq cakecrumbs-re-tag "^[^ .#:&@()]+")
-(setq cakecrumbs-re-class "[.][-A-z0-9_]+")
-(setq cakecrumbs-re-id "#[-A-z0-9_]+")
-(setq cakecrumbs-re-attr "\\[[-A-z0-9_]+.*\\]")
-(setq cakecrumbs-re-pseudo "::?[-A-z0-9_]+")
-(setq cakecrumbs-re-preprocessor "@[-A-z0-9_]+")
+(defun cakecrumbs-in-comment-p (&optional pos)
+  (nth 4 (syntax-ppss pos)))
 
-;; (setq cakecrumbs-ignored-patterns '("\\.col-[a-z0-9-]+"))  ; [FIXME] When parent only has .col-*
-(setq cakecrumbs-ignored-patterns '())
+(defun cakecrumbs-cursor-within-string (&optional pos)
+  (nth 3 (syntax-ppss pos)))
 
-;; (setq ex "span.col-md-3.col-xs-6#test-hello")
-;; (setq cs "span .col-md-3.col-xs-6 > #test-hello[disabled=true] :not(:nth-child(42))")
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-tag cs 0)
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-id cs 0)
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-class cs 0)
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-attr cs 0)
-;; (cakecrumbs-matched-positions-all cakecrumbs-re-pseudo cs 0)
+(defun cakecrumbs-invisible-line-p ()
+  (string-match-p "^[ \t]*$" (cakecrumbs-current-line-string)))
+
+(defun cakecrumbs-get-indentation-at-pos (pos)
+  (save-excursion (goto-char pos) (current-indentation)))
+
+(defun cakecrumbs-current-line-string ()
+  (substring (thing-at-point 'line t) 0 -1))
+
+(defun cakecrumbs-string-match (regexp num string)
+  (save-match-data
+    (if (string-match regexp string)
+        (match-string num string)
+      nil)))
+
+;; ======================================================
+;; Main
+;; ======================================================
 
 (defun cakecrumbs-propertize-string (level-str)
   "Input is single-level string"
@@ -164,7 +204,8 @@ SUBEXP-DEPTH is 0 by default."
             (concat (propertize ellipsis-str 'face 'cakecrumbs-ellipsis) fin)
           fin)))))
 
-(defun cakecrumbs-show-full-list ()
+(defun cakecrumbs-show-in-minibuffer ()
+  "Display full parents list in minibuffer"
   (interactive)
   (let ((parents (cakecrumbs-get-parents)))
     (if (null parents)
@@ -177,19 +218,6 @@ SUBEXP-DEPTH is 0 by default."
 
 (defun cakecrumbs-uninstall-header ()
   (setq header-line-format cakecrumbs--original-head-line-format))
-
-(defun cakecrumbs-current-line-string ()
-  (substring (thing-at-point 'line t) 0 -1))
-
-;; ======================================================
-;; header-line
-;; ======================================================
-
-(defun cakecrumbs-string-match (regexp num string)
-  (save-match-data
-    (if (string-match regexp string)
-        (match-string num string)
-      nil)))
 
 (defun cakecrumbs-get-parents (&optional point)
   "return string list, containing parents."
@@ -216,11 +244,6 @@ SUBEXP-DEPTH is 0 by default."
 ;; ======================================================
 ;; HTML
 ;; ======================================================
-
-(defun s () (interactive) (message "%s" (syntax-ppss)))
-
-(defun cakecrumbs-cursor-within-string (&optional pos)
-  (nth 3 (syntax-ppss pos)))
 
 (defun cakecrumbs-html-search-backward-< (&optional pos)
   "return the position of backwardly nearest syntactic < (not in
@@ -360,7 +383,6 @@ bool IN-TAG-ITSELF "
                  ))))
     fin))
 
-
 ;; (defun h () (interactive) (message "%s, %s" (point) (cakecrumbs-html-search-nearest-tag)))
 ;; (defun hh () (interactive) (message "%s" (cakecrumbs-html-get-parent)))
 ;; (defun hhh () (interactive) (message "%s" (cakecrumbs-html-get-parents)))
@@ -368,16 +390,6 @@ bool IN-TAG-ITSELF "
 ;; ======================================================
 ;; Jade / Pug
 ;; ======================================================
-
-(defun cakecrumbs-in-paren-p ()
-  "return nearest paren's beginning pos"
-  (car (nth 9 (syntax-ppss))))
-
-(defun cakecrumbs-in-comment-p ()
-  (nth 4 (syntax-ppss)))
-
-(defun cakecrumbs-invisible-line-p ()
-  (string-match-p "^[ \t]*$" (cakecrumbs-current-line-string)))
 
 (setq cakecrumbs-jade-invalid-tag-pattern
       ;; In fact, I tested tag `if-xxx', `each-xxx' with pug/jade compiler, but they will cause error..
@@ -394,17 +406,6 @@ bool IN-TAG-ITSELF "
 
 (defun cakecrumbs-jade-line-starts-with-tag ()
   (string-match-p "^[ \t]*[A-z]" (cakecrumbs-current-line-string)))
-
-(defun cakecrumbs-bol-pos ()
-  (save-excursion (beginning-of-line) (point)))
-
-(defun cakecrumbs-eol-pos ()
-  (save-excursion (end-of-line) (point)))
-
-(defun cakecrumbs-get-indentation-at-pos (pos)
-  (save-excursion
-    (goto-char pos)
-    (current-indentation)))
 
 (defun cakecrumbs-jade-search-nearest-plain-tag (&optional pos)
   "Search for the nearest plain-tag from POS (or `point' when POS is nil).
@@ -506,7 +507,8 @@ IN-TAG-ITSELF is always nil."
          left-paren-pos
          nil))))
 
-(defun c () (interactive) (message "%s" (cakecrumbs-scss-get-parent)))
+;; (defun c () (interactive) (message "%s" (cakecrumbs-scss-get-parent)))
+;; (defun cc () (interactive) (message "%s" (cakecrumbs-scss-get-parents)))
 
 ;; ======================================================
 ;; Stylus / Sass
