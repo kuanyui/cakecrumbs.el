@@ -216,21 +216,25 @@ SUBEXP-DEPTH is 0 by default."
 
 (defun cakecrumbs-get-parents (&optional point)
   "return string list, containing parents."
-  (cond ((memq major-mode cakecrumbs-scss-major-modes)
-         (cakecrumbs-scss-get-parents point))
-        ((memq major-mode cakecrumbs-html-major-modes)
+  (cond ((memq major-mode cakecrumbs-html-major-modes)
          (cakecrumbs-html-get-parents point))
         ((memq major-mode cakecrumbs-jade-major-modes)
-         (cakecrumbs-jade-get-parents point))))
+         (cakecrumbs-jade-get-parents point))
+        ((memq major-mode cakecrumbs-scss-major-modes)
+         (cakecrumbs-scss-get-parents point))
+        ((memq major-mode cakecrumbs-stylus-major-modes)
+         (cakecrumbs-stylus-get-parents point))))
 
 (defun cakecrumbs-get-parent ()
   "return a list: (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF)"
-  (cond ((memq major-mode cakecrumbs-scss-major-modes)
-         (cakecrumbs-scss-get-parent point))
-        ((memq major-mode cakecrumbs-html-major-modes)
+  (cond ((memq major-mode cakecrumbs-html-major-modes)
          (cakecrumbs-html-get-parent point))
         ((memq major-mode cakecrumbs-jade-major-modes)
-         (cakecrumbs-jade-get-parent point))))
+         (cakecrumbs-jade-get-parent point))
+        ((memq major-mode cakecrumbs-scss-major-modes)
+         (cakecrumbs-scss-get-parent point))
+        ((memq major-mode cakecrumbs-stylus-major-modes)
+         (cakecrumbs-stylus-get-parent point))))
 
 ;; ======================================================
 ;; HTML
