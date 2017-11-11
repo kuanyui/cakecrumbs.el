@@ -3,9 +3,9 @@
 ;; Copyright (C) 2017 ono hiroko
 
 ;; Author: ono hiroko <kuanyui.github.io>
-;; Keywords: languages
+;; Keywords: languages, html, jade, pug, sass, scss, stylus
 ;; Package-Requires: ((emacs "24.4"))
-;; X-URL: https://github.com/kuanyui/hexo.el
+;; X-URL: https://github.com/kuanyui/cakecrumbs.el
 ;; Version: 0.1
 
 ;; This program is free software; you can redistribute it and/or modify
