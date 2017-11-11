@@ -1,9 +1,12 @@
-;;; cakecrumbs.el ---                               -*- lexical-binding: t; -*-
+;;; cakecrumbs.el --- Show parents on header for HTML/Jade/Sass/Stylus -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2017 ono hiroko
 
 ;; Author: ono hiroko <kuanyui.github.io>
 ;; Keywords: languages
+;; Package-Requires: ((emacs "24.4"))
+;; X-URL: https://github.com/kuanyui/hexo.el
+;; Version: 0.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -19,10 +22,17 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
+;; Display parents’ chain on header for:
+;;
+;;   HTML
+;;   Jade / Pug
+;;   SCSS / LESS
+;;   Stylus / Sass
 
-;; Life is painful, see Github:   https://github.com/kuanyui/cakecrumbs.el
-
+;; Life is painful, see screenshot on Github to know what on earth is this doing::
+;;   https://github.com/kuanyui/cakecrumbs.el
 ;;; Code:
+
 
 ;; ======================================================
 ;; Buffer Local Variables
@@ -118,7 +128,7 @@ SUBEXP-DEPTH is 0 by default."
     (let ((pos 0) result)
       (while (and (string-match regexp string pos)
                   (< pos (length string)))
-        (let ((m (match-end subexp-depth)))
+        (progn
           (push (cons (match-beginning subexp-depth) (match-end subexp-depth)) result)
           (setq pos (match-end 0))))
       (nreverse result))))
@@ -133,7 +143,7 @@ SUBEXP-DEPTH is 0 by default."
 
 ;; Syntax
 (defun cakecrumbs-in-paren-p (&optional pos)
-  "return nearest paren's beginning pos.
+  "Return nearest paren's beginning POS.
 This is useless in `web-mode'."
   (car (nth 9 (syntax-ppss pos))))
 
@@ -248,8 +258,7 @@ else, returns a list with following elements:
 string PARENT-TAG has been formatted as CSS/Jade/Pug-liked.
 bool IN-TAG-ITSELF "
   (save-excursion
-    (let* ((pos (or from-pos (point)))
-           (m (cakecrumbs-html-search-nearest-tag from-pos))
+    (let* ((m (cakecrumbs-html-search-nearest-tag from-pos))
            (m-pos (nth 0 m))
            (init-in-paren (nth 2 m))
            (m-tag-role (nth 3 m))
