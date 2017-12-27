@@ -1,0 +1,75 @@
+doctype html
+html(lang="en", class = ['classOne', 'classTwo'].join(','))  // this should be interpretered as plain text
+  -// consult http://jade-lang.com for a full language reference
+  head
+    title My page
+  body.bp
+    #container
+      #header
+        h1.page-title My.awesome. page #is awesome#
+      #nav
+        ul#nav_list something sweet
+          li
+      #content
+
+        // here is a comment
+        //- here is a unbuffered comment syntax
+        -// comment after dash (I think the dash is not the part of comment.)
+        a(href = 'http://www.google.com') http://www.google.com
+          span / this is NOT a comment
+          - if (youAreUsingJade)
+            p You are amazing
+          - else
+            p Get on it! #{foobar}
+            form
+              input(type = "text", name='user[name]', readonly = true, disabled, wtf='a' stroke='a')
+        button.btn.btn-default(ng-click="hello('paren in str')" ng-disabled="!foobar") Click Me! #{foobar}
+        button#hello.btn.btn-default(ng-click="hello('in str')")
+    vue-component-demo(
+      // In face, Jade / Pug doesn't allow comment in element's attr list.
+      x= 22.82
+      y= 4+5 +.5 + 'px'
+      z = -5 -3
+      v-bind:show.sync='alertData.show'
+      v-bind:duration='1000'
+      @click="hello"
+      placement="top-right"
+      dismissable)
+    - for menu in menus
+      li.side__menu-single.clearfix#id-hello
+
+      div#single-quote.example .test
+      div#single-quote.example
+      div#single-quote.example() test
+      div#single-quote.example()
+      div#single-quote.example(ng-show="hello()") the quick brown firefox jumps over a lazy safari
+      div#single-quote.example(ng-show="hello()")
+        = 'this true single quote should highlight as a string'
+        = 'this one' + "and this should too"
+        //- I also want to solve this, please see yajade--font-lock-attr
+        span= 'another' + "quote example"
+        span() this one shouldn't higlight strings or... .other #things if else
+        | this one shouldn't highlight strings, and the same goes for .keywords #ok ?
+      div#paren.content.example(style = 'float: left;') Content .here #should be plain if for // not a comment
+        span {{ angular | filter }}
+        | Hello!
+      +helpMe("if this is .bolded #that's bad, we want a string","a second arg or else");
+      //- +mixIn('do not highlight mixins in comment blocks')
+      //- quote' quote" in comment"
+      div.examples#javascript
+        //- JS / CSS please see mmm-mode. yajade-mode won't deal with it.
+        - var a = 1;
+        - var helperFunction = function (a) { return (a === 1 ? 'singular' : 'plural'); };
+        span= someArray.join(', ')
+        span= a.toString() + helperFunction(a)
+        span#id.class(style = 'margin-bottom: 0;')= "some_js_expression".split('_').join(' ')
+    #footer
+      #copywrite-text= locals
+      // I've no interests to solve following 4 lines because font-lock's API is so shitty.
+      span: a.btn(a=1 b="b") .btn this is so complexed to solve in // Emacs
+      span: a.btn: span(a=1 b="b") this is so complexed to solve in // Emacs
+        span: span: span: span(a=1 b="b") this is so complexed to solve in // Emacs
+        span(): span(a=1 b="b") Yajade not support syntax-highlight for this
+
+
+
