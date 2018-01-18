@@ -633,7 +633,7 @@ Currently IN-TAG-ITSELF is always nil."
 ;; Minor Mode
 ;; ======================================================
 
-
+;;;###autoload
 (define-minor-mode cakecrumbs-mode
   "doc"
   :init-value nil
@@ -650,7 +650,7 @@ Currently IN-TAG-ITSELF is always nil."
 ;; Setup
 ;; ======================================================
 
-
+;;;###autoload
 (defun cakecrumbs-auto-setup ()
   "Use in your Emacs config file. Auto add-hook to all modes
 defined in:
