@@ -48,9 +48,11 @@
 ;; Variables For Customization
 ;; ======================================================
 (defgroup cakecrumbs nil
-  "cakecrumbs can show parents on header for HTML/Jade/Sass/Stylus"
-  :prefix "cakecrumbs-"
+  "Cakecrumbs can show parents on header for HTML/Jade/Sass/Stylus"
   :link '(url-link "https://github.com/kuanyui/cakecrumbs.el"))
+
+(defgroup cakecrumbs-faces nil
+  "Faces for Cakecrumbs")
 
 (defcustom cakecrumbs-refresh-delay-seconds 0.1
   "Set to number to refresh after idling N seconds.
@@ -85,35 +87,35 @@ Set to nil, refresh without any delay."
 
 (defface cakecrumbs-ellipsis
   '((t :inherit font-lock-comment-face))
-  "Ellipsis" :group 'cakecrumbs)
+  "Ellipsis" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-separator
   '((t :inherit font-lock-comment-face))
-  "Seperator between each level" :group 'cakecrumbs)
+  "Seperator between each level" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-tag
   '((t :inherit font-lock-function-name-face))
-  "HTML/CSS tag" :group 'cakecrumbs)
+  "HTML/CSS tag" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-id
   '((t :inherit font-lock-keyword-face))
-  "HTML/CSS #id" :group 'cakecrumbs)
+  "HTML/CSS #id" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-class
   '((t :inherit font-lock-type-face))
-  "HTML/CSS .class" :group 'cakecrumbs)
+  "HTML/CSS .class" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-pseudo
   '((t :inherit font-lock-constant-face))
-  "CSS :pseudo selector" :group 'cakecrumbs)
+  "CSS :pseudo selector" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-attr
   '((t :inherit font-lock-variable-name-face))
-  "CSS [attribute=] selector" :group 'cakecrumbs)
+  "CSS [attribute=] selector" :group 'cakecrumbs-faces)
 
 (defface cakecrumbs-preprocessor
   '((t :inherit font-lock-preprocessor-face))
-  "SCSS/LESS/Stylus @.+ or CSS @media" :group 'cakecrumbs)
+  "SCSS/LESS/Stylus @.+ or CSS @media" :group 'cakecrumbs-faces)
 
 ;; ======================================================
 ;; Variables
