@@ -84,44 +84,36 @@ Set to nil, refresh without any delay."
   :group 'cakecrumbs :type '(repeat string))
 
 (defface cakecrumbs-ellipsis
-  '((((class color) (background light)) (:inherit font-lock-comment-face))
-    (((class color) (background dark)) (:inherit font-lock-comment-face)))
-  "Ellipsis" :group 'cakecrumbs-faces)
+  '((t :inherit font-lock-comment-face))
+  "Ellipsis" :group 'cakecrumbs)
 
 (defface cakecrumbs-separator
-  '((((class color) (background light)) (:inherit font-lock-comment-face))
-    (((class color) (background dark)) (:inherit font-lock-comment-face)))
-  "Seperator between each level" :group 'cakecrumbs-faces)
+  '((t :inherit font-lock-comment-face))
+  "Seperator between each level" :group 'cakecrumbs)
 
 (defface cakecrumbs-tag
-  '((((class color) (background light)) (:inherit font-lock-function-name-face))
-    (((class color) (background dark)) (:inherit font-lock-function-name-face)))
-  "HTML/CSS tag" :group 'cakecrumbs-faces)
+  '((t :inherit font-lock-function-name-face))
+  "HTML/CSS tag" :group 'cakecrumbs)
 
 (defface cakecrumbs-id
-  '((((class color) (background light)) (:inherit font-lock-keyword-face))
-    (((class color) (background dark)) (:inherit font-lock-keyword-face)))
-  "HTML/CSS #id" :group 'cakecrumbs-faces)
+  '((t :inherit font-lock-keyword-face))
+  "HTML/CSS #id" :group 'cakecrumbs)
 
 (defface cakecrumbs-class
-  '((((class color) (background light)) (:inherit font-lock-type-face))
-    (((class color) (background dark)) (:inherit font-lock-type-face)))
-  "HTML/CSS .class" :group 'cakecrumbs-faces)
+  '((t :inherit font-lock-type-face))
+  "HTML/CSS .class" :group 'cakecrumbs)
 
 (defface cakecrumbs-pseudo
-  '((((class color) (background light)) (:inherit font-lock-constant-face))
-    (((class color) (background dark)) (:inherit font-lock-constant-face)))
-  "CSS :pseudo selector" :group 'cakecrumbs-faces)
+  '((t :inherit font-lock-constant-face))
+  "CSS :pseudo selector" :group 'cakecrumbs)
 
 (defface cakecrumbs-attr
-  '((((class color) (background light)) (:inherit font-lock-variable-name-face))
-    (((class color) (background dark)) (:inherit font-lock-variable-name-face)))
-  "CSS [attribute=] selector" :group 'cakecrumbs-faces)
+  '((t :inherit font-lock-variable-name-face))
+  "CSS [attribute=] selector" :group 'cakecrumbs)
 
 (defface cakecrumbs-preprocessor
-  '((((class color) (background light)) (:inherit font-lock-preprocessor-face))
-    (((class color) (background dark)) (:inherit font-lock-preprocessor-face)))
-  "SCSS/LESS/Stylus @.+ or CSS @media" :group 'cakecrumbs-faces)
+  '((t :inherit font-lock-preprocessor-face))
+  "SCSS/LESS/Stylus @.+ or CSS @media" :group 'cakecrumbs)
 
 ;; ======================================================
 ;; Variables
