@@ -47,22 +47,41 @@
 ;; ======================================================
 ;; Variables For Customization
 ;; ======================================================
+(defgroup cakecrumbs nil
+  "cakecrumbs can show parents on header for HTML/Jade/Sass/Stylus"
+  :prefix "cakecrumbs-"
+  :link '(url-link "https://github.com/kuanyui/cakecrumbs.el"))
 
-(defvar cakecrumbs-refresh-delay-seconds 0.1
+(defcustom cakecrumbs-refresh-delay-seconds 0.1
   "Set to number to refresh after idling N seconds.
-Set to nil, refresh without any delay.")
+Set to nil, refresh without any delay."
+  :group 'cakecrumbs :type 'face)
 
-(defvar cakecrumbs-separator " | ")
-(defvar cakecrumbs-ellipsis "[...] ")
+(defcustom cakecrumbs-separator " | "
+  "The separator between each hierarchy."
+  :group 'cakecrumbs :type 'string)
+(defcustom cakecrumbs-ellipsis "[...] "
+  "When parent list too long, this will be displayed."
+  :group 'cakecrumbs :type 'string)
 
-(defvar cakecrumbs-html-major-modes   '(html-mode web-mode nxml-mode sgml-mode))
-(defvar cakecrumbs-jade-major-modes   '(yajade-mode jade-mode pug-mode))
-(defvar cakecrumbs-scss-major-modes   '(scss-mode less-css-mode css-mode))
-(defvar cakecrumbs-stylus-major-modes '(stylus-mode sass-mode))
+(defcustom cakecrumbs-html-major-modes   '(html-mode web-mode nxml-mode sgml-mode)
+  "The major-mode which will be seemed as HTML."
+  :group 'cakecrumbs :type '(repeat symbol))
+(defcustom cakecrumbs-jade-major-modes   '(yajade-mode jade-mode pug-mode)
+  "The major-mode which will be seemed as Jade / Pug Template"
+  :group 'cakecrumbs :type '(repeat symbol))
+(defcustom cakecrumbs-scss-major-modes   '(scss-mode less-css-mode css-mode)
+  "The major-mode which will be seemed as CSS / SCSS / LESS"
+  :group 'cakecrumbs :type '(repeat symbol))
+(defcustom cakecrumbs-stylus-major-modes '(stylus-mode sass-mode)
+  "The major-mode which will be seemed as Stylus / SASS"
+  :group 'cakecrumbs :type '(repeat symbol))
 
-(defvar cakecrumbs-ignored-patterns '(
-                                      "[.]col-[a-z][a-z]-[0-9]+"  ; Bootstrap's .col-*
-                                      ))
+(defcustom cakecrumbs-ignored-patterns '(
+                                         "[.]col-[a-z][a-z]-[0-9]+"  ; Bootstrap's .col-*
+                                         )
+  "RegExp patterns to ignore specific elements."
+  :group 'cakecrumbs :type '(repeat string))
 
 (defface cakecrumbs-ellipsis
   '((((class color) (background light)) (:inherit font-lock-comment-face))
