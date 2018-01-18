@@ -57,7 +57,7 @@
 (defcustom cakecrumbs-refresh-delay-seconds 0.1
   "Set to number to refresh after idling N seconds.
 Set to nil, refresh without any delay."
-  :group 'cakecrumbs :type 'face)
+  :group 'cakecrumbs :type 'number)
 
 (defcustom cakecrumbs-separator " | "
   "The separator between each hierarchy."
