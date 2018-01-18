@@ -619,15 +619,15 @@ Currently IN-TAG-ITSELF is always nil."
       (progn (setq cakecrumbs--idle-timer
                    (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
              (setq header-line-format '((:eval cakecrumbs--formatted-header))))
-    (progn (setq header-line-format '((:eval (cakecrumbs-generate-header-string)))))))
+    (progn (setq header-line-format '((:eval (cakecrumbs-generate-header-string))))))
+  (add-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header nil t))
 
 (defun cakecrumbs-uninstall-header ()
   (if (timerp cakecrumbs--idle-timer)
       (cancel-timer cakecrumbs--idle-timer))
   (if cakecrumbs--original-head-line-format
-      (setq header-line-format cakecrumbs--original-head-line-format)))
-
-(add-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header)
+      (setq header-line-format cakecrumbs--original-head-line-format))
+  (remove-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header t))
 
 ;; ======================================================
 ;; Minor Mode
