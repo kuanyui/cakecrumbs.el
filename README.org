@@ -9,9 +9,7 @@ Display parents' chain on header for:
 [[file:demo.gif]]
 
 ** Settings
-#+BEGIN_QUOTE
-MELPA is not ready yet. Please wait.
-#+END_QUOTE
+Now =cakecrumbs.el= is available on MELPA.
 
 #+BEGIN_SRC elisp
   ;; =======================================================
