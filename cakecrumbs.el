@@ -241,7 +241,7 @@ else, returns a list with following elements:
 3. symbol, type: `self-closing-tag', `start-tag', `end-tag'
 4. string, tag name.
 5. string, id name.
-6. list,   class nqames.
+6. list,   class names.
 
 "
   (let* ((begin (cakecrumbs-html-search-backward-< pos))
