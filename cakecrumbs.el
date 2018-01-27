@@ -58,7 +58,7 @@
 
 (defcustom cakecrumbs-refresh-delay-seconds 0.1
   "Set to number to refresh after idling N seconds.
-Set to nil, refresh without any delay."
+Set to nil or 0, refresh without any delay."
   :group 'cakecrumbs :type 'number)
 
 (defcustom cakecrumbs-separator " | "
@@ -620,7 +620,8 @@ Currently IN-TAG-ITSELF is always nil."
     (if (timerp cakecrumbs--idle-timer)
         (cancel-timer cakecrumbs--idle-timer))
     (setq cakecrumbs--original-head-line-format header-line-format)
-    (if cakecrumbs-refresh-delay-seconds
+    (if (and (numberp cakecrumbs-refresh-delay-seconds)
+             (> cakecrumbs-refresh-delay-seconds 0))
         (progn (setq cakecrumbs--idle-timer
                      (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
                (setq header-line-format '((:eval cakecrumbs--formatted-header))))
