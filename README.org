@@ -24,6 +24,8 @@ Now =cakecrumbs.el= is available on MELPA.
 
   ;; Auto `add-hook' for above major-mode.  (Auto enable `cakecrumbs'
   ;; for the major-modes which have specify in above variables)
+  ;; This automatically do this for you:
+  ;; (add-hook 'MODE-HOOK 'cakecrumbs-enable-if-disabled)
   (cakecrumbs-auto-setup)
 
   ;; Set to number to refresh after idling N seconds.
@@ -54,4 +56,4 @@ Now =cakecrumbs.el= is available on MELPA.
 - Life is so painful.
 
 ** License
-GPLv3
+   GPLv3

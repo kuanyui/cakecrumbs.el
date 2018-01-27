@@ -42,7 +42,9 @@
 (defvar-local cakecrumbs--idle-timer nil
   "Buffer-local timer.")
 (defvar-local cakecrumbs--original-head-line-format nil
-  "The value of `header-line-format' before calling `cakecrumbs-install-header'")
+  "Sotre the value of `header-line-format' before calling `cakecrumbs-install-header'")
+(defvar-local cakecrumbs--header-installed nil
+  "Internal use.")
 
 ;; ======================================================
 ;; Variables For Customization
@@ -612,22 +614,25 @@ Currently IN-TAG-ITSELF is always nil."
       (force-mode-line-update))))
 
 (defun cakecrumbs-install-header ()
-  (if (timerp cakecrumbs--idle-timer)
-      (cancel-timer cakecrumbs--idle-timer))
-  (setq cakecrumbs--original-head-line-format header-line-format)
-  (if cakecrumbs-refresh-delay-seconds
-      (progn (setq cakecrumbs--idle-timer
-                   (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
-             (setq header-line-format '((:eval cakecrumbs--formatted-header))))
-    (progn (setq header-line-format '((:eval (cakecrumbs-generate-header-string))))))
-  (add-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header nil t))
+  (when (not cakecrumbs--header-installed)
+    (if (timerp cakecrumbs--idle-timer)
+        (cancel-timer cakecrumbs--idle-timer))
+    (setq cakecrumbs--original-head-line-format header-line-format)
+    (if cakecrumbs-refresh-delay-seconds
+        (progn (setq cakecrumbs--idle-timer
+                     (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
+               (setq header-line-format '((:eval cakecrumbs--formatted-header))))
+      (progn (setq header-line-format '((:eval (cakecrumbs-generate-header-string))))))
+    (add-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header nil t)
+    (setq cakecrumbs--header-installed t)))
 
 (defun cakecrumbs-uninstall-header ()
-  (if (timerp cakecrumbs--idle-timer)
-      (cancel-timer cakecrumbs--idle-timer))
-  (if cakecrumbs--original-head-line-format
-      (setq header-line-format cakecrumbs--original-head-line-format))
-  (remove-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header t))
+  (when cakecrumbs--header-installed
+    (if (timerp cakecrumbs--idle-timer)
+        (cancel-timer cakecrumbs--idle-timer))
+    (setq header-line-format cakecrumbs--original-head-line-format)
+    (setq cakecrumbs--original-head-line-format nil)
+    (remove-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header t)))
 
 ;; ======================================================
 ;; Minor Mode
@@ -646,6 +651,12 @@ Currently IN-TAG-ITSELF is always nil."
 
 (defalias 'cakecrumbs 'cakecrumbs-mode)
 
+;;;###autoload
+(defun cakecrumbs-enable-if-disabled ()
+  (interactive)
+  (if cakecrumbs-mode
+      (cakecrumbs-mode)))
+
 ;; ======================================================
 ;; Setup
 ;; ======================================================
@@ -663,7 +674,7 @@ defined in:
           (let* ((mode-name (symbol-name mode-symbol))
                  (hook-symbol (intern (concat mode-name "-hook"))))
             (eval-after-load mode-symbol
-              `(add-hook (quote ,hook-symbol) 'cakecrumbs-mode)
+              `(add-hook (quote ,hook-symbol) 'cakecrumbs-enable-if-disabled)
               )))
         (append cakecrumbs-html-major-modes
                 cakecrumbs-jade-major-modes
