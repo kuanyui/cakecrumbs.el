@@ -620,12 +620,17 @@ Currently IN-TAG-ITSELF is always nil."
     (if (timerp cakecrumbs--idle-timer)
         (cancel-timer cakecrumbs--idle-timer))
     (setq cakecrumbs--original-head-line-format header-line-format)
-    (if (and (numberp cakecrumbs-refresh-delay-seconds)
-             (> cakecrumbs-refresh-delay-seconds 0))
-        (progn (setq cakecrumbs--idle-timer
-                     (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
-               (setq header-line-format '((:eval cakecrumbs--formatted-header))))
-      (progn (setq header-line-format '((:eval (cakecrumbs-generate-header-string))))))
+    (cond ((and (numberp cakecrumbs-refresh-delay-seconds)
+                (> cakecrumbs-refresh-delay-seconds 0))
+           (progn (setq cakecrumbs--idle-timer
+                        (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
+                  (setq header-line-format '((:eval cakecrumbs--formatted-header)))))
+          ((> (buffer-size) (* 1024 1024 100))  ;; if file size > 100 MB, always use idle timer.
+           (progn (setq cakecrumbs--idle-timer
+                        (run-with-idle-timer 0.3 t #'cakecrumbs-timer-handler (current-buffer)))
+                  (setq header-line-format '((:eval cakecrumbs--formatted-header)))))
+          (t
+           (progn (setq header-line-format '((:eval (cakecrumbs-generate-header-string)))))))
     (add-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header nil t)
     (setq cakecrumbs--header-installed t)))
 
