@@ -632,7 +632,8 @@ Currently IN-TAG-ITSELF is always nil."
           (t
            (progn (setq header-line-format '((:eval (cakecrumbs-generate-header-string)))))))
     (add-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header nil t)
-    (setq cakecrumbs--header-installed t)))
+    (setq cakecrumbs--header-installed t)
+    (message "Cakecrumb header installed")))
 
 (defun cakecrumbs-uninstall-header ()
   (when cakecrumbs--header-installed
@@ -640,7 +641,8 @@ Currently IN-TAG-ITSELF is always nil."
         (cancel-timer cakecrumbs--idle-timer))
     (setq header-line-format cakecrumbs--original-head-line-format)
     (setq cakecrumbs--original-head-line-format nil)
-    (remove-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header t)))
+    (remove-hook 'kill-buffer-hook 'cakecrumbs-uninstall-header t)
+    (message "Cakecrumb header uninstalled")))
 
 ;; ======================================================
 ;; Minor Mode
@@ -653,16 +655,16 @@ Currently IN-TAG-ITSELF is always nil."
   :lighter " cakecrumbs"
   ;; :keymap cakecrumbs-mode-map
   :global nil
-  (if cakecrumbs-mode
-      (cakecrumbs-install-header)
-    (cakecrumbs-uninstall-header)))
+  :after-hook (if cakecrumbs-mode
+                  (cakecrumbs-install-header)
+                (cakecrumbs-uninstall-header)))
 
 (defalias 'cakecrumbs 'cakecrumbs-mode)
 
 ;;;###autoload
 (defun cakecrumbs-enable-if-disabled ()
   (interactive)
-  (if cakecrumbs-mode
+  (if (not cakecrumbs-mode)
       (cakecrumbs-mode)))
 
 ;; ======================================================
