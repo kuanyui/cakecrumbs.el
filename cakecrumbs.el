@@ -184,7 +184,7 @@ This is useless in `web-mode'."
       nil)))
 
 ;; ======================================================
-;; HTML
+;; XML / HTML
 ;; ======================================================
 
 (defun cakecrumbs-html-search-backward-< (&optional pos)
@@ -625,7 +625,7 @@ Currently IN-TAG-ITSELF is always nil."
            (progn (setq cakecrumbs--idle-timer
                         (run-with-idle-timer cakecrumbs-refresh-delay-seconds t #'cakecrumbs-timer-handler (current-buffer)))
                   (setq header-line-format '((:eval cakecrumbs--formatted-header)))))
-          ((> (buffer-size) (* 1024 1024 100))  ;; if file size > 100 MB, always use idle timer.
+          ((> (buffer-size) (* 1024 1024 10))  ;; if file size > 10 MB, always use idle timer.
            (progn (setq cakecrumbs--idle-timer
                         (run-with-idle-timer 0.3 t #'cakecrumbs-timer-handler (current-buffer)))
                   (setq header-line-format '((:eval cakecrumbs--formatted-header)))))

@@ -1,6 +1,6 @@
 * Cakecrumbs.el
 Display parents' chain on header for:
-  - HTML
+  - XML / HTML
   - Jade / Pug
   - SCSS / LESS
   - Stylus / Sass
@@ -52,6 +52,8 @@ Now =cakecrumbs.el= is available on MELPA.
                             ng-model="b"): c hello
   #+END_SRC
 #+END_QUOTE
+- =mmm-mode= may disable =cakecrumb-mode= after =cakecrumb-mode= enabling. I don't know how to deal with this currently.
+- Huge XML/HTML file may cause freeze.
 - Didn't named =breadcrumbs= because that had been used by someone else.
 - Life is so painful.
 
