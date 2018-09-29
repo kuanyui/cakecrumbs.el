@@ -610,7 +610,7 @@ Currently IN-TAG-ITSELF is always nil."
 ;; ======================================================
 ;;
 (defun cakecrumbs-timer-handler (buffer)
-  (when (buffer-live-p buffer)
+  (when (and (buffer-live-p buffer) (eq (current-buffer) buffer))
     (with-current-buffer buffer
       (setq cakecrumbs--formatted-header (cakecrumbs-generate-header-string))
       (force-mode-line-update))))
