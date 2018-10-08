@@ -30,7 +30,7 @@ Now =cakecrumbs.el= is available on MELPA.
 
   ;; Set to number to refresh after idling N seconds.
   ;; Set to nil, refresh without any delay.
-  (setq cakecrumbs-refresh-delay-seconds 0.1)
+  (setq cakecrumbs-refresh-delay-seconds 0.3)
 
   ;; Appearances
   (setq cakecrumbs-separator " | ")

@@ -187,7 +187,7 @@ This is useless in `web-mode'."
 ;; XML / HTML
 ;; ======================================================
 
-(defun cakecrumbs-html-search-backward-< (&optional pos)
+(defun cakecrumbs-html-search-backward-< (&optional pos boundary)
   "return the position of backwardly nearest syntactic < (not in
 string && not in comment) from POS. If not found, return nil
 
@@ -200,7 +200,7 @@ string && not in comment) from POS. If not found, return nil
         (if pos (goto-char pos))
         (let ((fin nil))
           (while (progn
-                   (setq fin (re-search-backward "<"  nil :no-error))
+                   (setq fin (re-search-backward "<"  boundary :no-error))
                    (cond ((null fin) nil)
                          ((eq (point-min) (point)) nil) ; break
                          ((not (memq major-mode cakecrumbs-html-major-modes)) nil)  ; break. Is this condition possible in mmm-mode?
@@ -210,7 +210,7 @@ string && not in comment) from POS. If not found, return nil
             (setq fin nil))
           fin))))
 
-(defun cakecrumbs-html-search-forward-> (&optional pos)
+(defun cakecrumbs-html-search-forward-> (&optional pos poundary)
   "return the position of forwardly nearest syntactic > (not in
 string && not in comment) from POS. If not found, return nil"
   (if (memq major-mode cakecrumbs-html-major-modes)
@@ -228,7 +228,7 @@ string && not in comment) from POS. If not found, return nil"
             (setq fin nil))
           fin))))
 
-(defun cakecrumbs-html-search-nearest-tag (&optional pos)
+(defun cakecrumbs-html-search-nearest-tag (&optional pos boundary)
   "Get position of the nearest tag from POS (or `point' when POS is nil).
 Always search backwardly, and comment tag never involved.
 
@@ -243,9 +243,12 @@ else, returns a list with following elements:
 5. string, id name.
 6. list,   class names.
 
-"
-  (let* ((begin (cakecrumbs-html-search-backward-< pos))
-         (end (if begin (cakecrumbs-html-search-forward-> begin)))
+  `self-closing-tag' <img />
+  `start-tag' <a>
+  `end-tag' </a>
+  "
+  (let* ((begin (cakecrumbs-html-search-backward-< pos boundary))
+         (end (if begin (cakecrumbs-html-search-forward-> begin (+ begin 300))))
          (in-tag (if end (eq end (cakecrumbs-html-search-forward-> pos)))))
     (if (or (null begin) (null end))
         nil
@@ -269,13 +272,12 @@ else, returns a list with following elements:
         (if tag-classes (setq tag-classes (split-string (string-trim tag-classes) " +")))
         (list begin end in-tag tag-role tag-name tag-id tag-classes)))))
 
-
-(defun cakecrumbs-html-get-parent (&optional from-pos)
+(defun cakecrumbs-html-get-parent (&optional from-pos boundary)
   "return list. (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF).
-string PARENT-TAG has been formatted as CSS/Jade/Pug-liked.
-bool IN-TAG-ITSELF "
+  string PARENT-TAG has been formatted as CSS/Jade/Pug-liked.
+  bool IN-TAG-ITSELF "
   (save-excursion
-    (let* ((m (cakecrumbs-html-search-nearest-tag from-pos))
+    (let* ((m (cakecrumbs-html-search-nearest-tag from-pos boundary))
            (m-pos (nth 0 m))
            (init-in-paren (nth 2 m))
            (m-tag-role (nth 3 m))
@@ -294,7 +296,7 @@ bool IN-TAG-ITSELF "
               ((eq m-tag-role 'end-tag)
                (push m-tag-name stack))
               (t nil)) ; ignore
-        (setq m (cakecrumbs-html-search-nearest-tag m-pos))
+        (setq m (cakecrumbs-html-search-nearest-tag m-pos boundary))
         (setq m-pos (nth 0 m))
         (setq m-tag-role (nth 3 m))
         (setq m-tag-name (nth 4 m)))
@@ -312,11 +314,14 @@ bool IN-TAG-ITSELF "
              (nth 0 m)
              (nth 2 m)))))))
 
+(defun cakecrumbs-calc-backward-boundary (point)
+  (max (- point 350) (point-min)))
 
 (defun cakecrumbs-html-get-parents (&optional point)
   (let ((fin '())
         (last-parent-pos (or point (point))))
-    (while (let ((parent-obj (cakecrumbs-html-get-parent last-parent-pos)))
+    (while (let ((parent-obj (or (cakecrumbs-html-get-parent last-parent-pos (cakecrumbs-calc-backward-boundary last-parent-pos))
+                                 (cakecrumbs-html-get-approx-parent last-parent-pos))))
              (if (or (null (car parent-obj))
                      (null (nth 1 parent-obj)))
                  nil ; break
@@ -352,11 +357,11 @@ bool IN-TAG-ITSELF "
 
 (defun cakecrumbs-jade-search-nearest-plain-tag (&optional pos)
   "Search for the nearest plain-tag from POS (or `point' when POS is nil).
-return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
+  return a list: (ELEM-SELECTOR TAG-POS INIT-IN-PAREN)
 
-Always search backwardly.
+  Always search backwardly.
 
-All comment-tags and nested-tags are ignored."
+  All comment-tags and nested-tags are ignored."
   (save-excursion
     (if pos (goto-char pos))
     (let* ((init-in-parenthesis (cakecrumbs-in-paren-p))
@@ -377,7 +382,7 @@ All comment-tags and nested-tags are ignored."
 
 (defun cakecrumbs-jade-get-parent (&optional point)
   "return value (PARENT-SELECTOR PARENT-POS IN-TAG-ITSELF).
-Find backward lines up to parent"
+  Find backward lines up to parent"
   (save-excursion
     (if point (goto-char point))
     (let* ((init-in-parenthesis (nth 9 (syntax-ppss)))
@@ -430,7 +435,7 @@ Find backward lines up to parent"
     (if pos (goto-char pos))
     (let* ((to pos)
            (from (progn (re-search-backward "[,;{}^\n]" nil t)
-                        (1+ (point)))))
+                                              (1+ (point)))))
       (string-trim (buffer-substring from to)))))
 
 (defun cakecrumbs-scss-get-parents (&optional point)
